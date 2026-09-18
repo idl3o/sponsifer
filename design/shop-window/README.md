@@ -18,6 +18,10 @@ Design sources for the creator's visible mark on clip previews: the board that a
 
 - **The editor's controls grew to tap size, in the code only.** On 18 September 2026 the accent swatches went from 26 px to 28 px, the custom-colour input to 32 by 30, and the QR checkbox row gained a 28 px minimum, because the play test found them too small to hit at phone width. The canvas's editor artboard still shows the smaller controls. When the canvas is next opened, move it to match the code.
 
+## The stream emblem is edited in the app, not on a canvas
+
+The sponsor emblem on the OBS overlay has no artboard here. Sam asked for the canvas's kind of editing inside the product instead: the creator drags the badge over a stream frame in the deal row and sees exactly what OBS will draw, because the preview and the overlay share one renderer. A canvas would have been a second picture of the same thing, one step removed from the pixels that ship.
+
 ## Checks the editor runs
 
 - The PREVIEW label is present in every mode.

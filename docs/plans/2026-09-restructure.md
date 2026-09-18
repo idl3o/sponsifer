@@ -49,13 +49,12 @@ Found along the way:
 
 ## What the pivot still owes
 
-Reassessed on 18 September 2026, before the merge to `main`. Built since the restructure: the offer evaluator (d1aec61), the on-air logger (22fab30), the signed delivery report (f2bcf96), the overlay-pricing evidence (0f08ee5, which declined a benchmark), the rename to Sponsifable (a596a0e), and the app's read-only view of the on-air log and its reports. The `websockets` package won over a hand-rolled client, and the OBS password is asked for per session rather than kept in a keyring. One real OBS session confirmed the overlay renders and that scene switches produce matching activation events.
+Reassessed on 18 September 2026, before the merge to `main`, and again after it: the sponsor emblem is built (workspace format 5, edited by hand over a stream frame on the deal), and the Lightning branch's format must become 6. Built since the restructure: the offer evaluator (d1aec61), the on-air logger (22fab30), the signed delivery report (f2bcf96), the overlay-pricing evidence (0f08ee5, which declined a benchmark), the rename to Sponsifable (a596a0e), and the app's read-only view of the on-air log and its reports. The `websockets` package won over a hand-rolled client, and the OBS password is asked for per session rather than kept in a keyring. One real OBS session confirmed the overlay renders and that scene switches produce matching activation events.
 
 Still owed, in the order they should be taken:
 
 - **The remaining probe passes** — eye toggle, nested scene, studio mode, source reload — and a test stream, so the logger's riskiest assumption is tested rather than designed around. Only Sam can run these.
 - **Starting and stopping the logger from the app**, so there is no second terminal. Needs process management in the server, and a decision on where the OBS password lives when authentication is on.
-- **A sponsor asset in the overlay**: the logo or image, its placement and size, in the workspace. Workspace format 5, with the Lightning branch renumbered to 6.
 - **The deal panel as an OBS dock.**
 - **The first PyPI release**: recreate both pending publishers under `sponsifable`, TestPyPI first, per `docs/RELEASING.md`.
 - **Payment**, shelved on `sandbox/lightning`.

@@ -117,3 +117,16 @@ The riskiest assumption is that OBS reports a browser source's program activity 
 5. Stop with Ctrl+C. The summary counts the on-air intervals and the disagreements.
 
 No disagreements across those cases means the events can be billed against, with the poll kept as a guard. Any disagreement is a finding for this note, and the poll then has to carry the log.
+
+### The run, 18 September 2026
+
+OBS 32.2.2, obs-websocket 5.7.4, authentication off, the overlay created over the WebSocket into the program scene and pointed at the served overlay page. Sam worked through the cases while the probe watched.
+
+- **Scene switches**, six of them, each produced a matching `InputActiveStateChanged` and `InputShowStateChanged` pair within 20 ms of `CurrentProgramSceneChanged`.
+- **The eye**, toggled twice in the program scene: `SceneItemEnableStateChanged` followed by the input events, both ways.
+- **Studio mode** on and off: `StudioModeStateChanged` twice, the program scene reported unchanged, the source's state undisturbed.
+- **Every poll agreed with the events.** The single "disagreement" in the log is the probe's own first reading, which that version of the probe still counted; the logger never did, and the probe now matches it.
+- **Not exercised: a live stream.** Both `StreamStateChanged` events carry `outputActive: false`. They are two stream starts that failed to connect to the ingest, which is what Sam had seen as "the server connection failing". It was OBS failing to reach Twitch, not the overlay or the local server, both of which `GetSourceScreenshot` showed rendering the emblem correctly at the time.
+- **Not exercised: a nested scene.** The overlay moved between scenes but was never placed inside a scene nested in another.
+
+So, for a browser source in OBS 32: the activation events are reliable for scene switches, visibility toggles and studio mode, and the poll stays as the guard. The stream-live half and nested scenes remain to be run with a test stream.
