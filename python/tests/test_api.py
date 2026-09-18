@@ -234,6 +234,8 @@ def test_the_overlay_is_served_and_a_foreign_host_is_refused_everywhere(tmp_path
         port = server.ctx.port
         with urllib.request.urlopen(f"http://127.0.0.1:{port}/overlay?deal=dl-1") as response:
             assert response.read() == b"<p>overlay</p>"
+            # OBS's embedded browser must revalidate the page, or a rebuild leaves it on stale assets.
+            assert response.headers.get("Cache-Control") == "no-cache"
         connection = http.client.HTTPConnection("127.0.0.1", port)
         connection.request("GET", "/overlay", headers={"Host": "rebound.example"})
         assert connection.getresponse().status == 403

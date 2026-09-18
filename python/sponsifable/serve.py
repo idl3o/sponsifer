@@ -39,6 +39,15 @@ class _Handler(http.server.SimpleHTTPRequestHandler):
     def log_message(self, format: str, *args: object) -> None:  # noqa: A002 - stdlib signature
         pass
 
+    def end_headers(self) -> None:
+        # The pages must always be revalidated: OBS's embedded browser keeps a
+        # page it has loaded, and a stale overlay.html points at assets that
+        # no longer exist after a rebuild. The assets themselves carry a hash
+        # in their names and may be cached.
+        if self.path.split("?", 1)[0].endswith((".html", "/")):
+            self.send_header("Cache-Control", "no-cache")
+        super().end_headers()
+
     def _host_ok(self) -> bool:
         if api.host_allowed(self.headers.get("Host"), self.server.ctx.port):
             return True
