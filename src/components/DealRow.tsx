@@ -7,6 +7,7 @@ import type { Deal, Sighting } from '../domain/types';
 import { useSyncStatus } from '../store/sync';
 import { useStore } from '../store/useStore';
 import { fetchOnAir, type OnAir } from '../store/workspaceClient';
+import { EmblemEditor } from './emblem/EmblemEditor';
 import { Button, Pill, TextField, copyText, money } from './ui/Primitives';
 
 const LOST_LABEL: Record<NonNullable<Deal['lostReason']>, string> = {
@@ -191,17 +192,18 @@ function OnAirLine({ deal, onAir }: { deal: Deal; onAir: OnAir | null }) {
   );
 }
 
-/** The OBS browser source that puts the ad label on stream, and what the log says about it. */
+/** The OBS browser source that puts the emblem on stream, and what the log says about it. */
 function OnStream({ deal }: { deal: Deal }) {
   const served = useSyncStatus((s) => s.mode === 'file');
   const [copied, setCopied] = useState(false);
+  const [editing, setEditing] = useState(false);
   const url = overlayUrl(window.location.origin, deal.id);
   const onAir = useOnAir(deal.id, served);
   return (
     <>
       <h3>On stream</h3>
       <p className="note">
-        Add this address to OBS as a browser source. It shows the ad label and the sponsor's name,
+        Add this address to OBS as a browser source. It draws the sponsor's emblem with the Ad label,
         reads this workspace, and needs no OBS permissions.
       </p>
       <div className="row" style={{ marginBottom: 8 }}>
@@ -212,7 +214,9 @@ function OnStream({ deal }: { deal: Deal }) {
         >
           {copied ? 'Copied' : 'Copy OBS URL'}
         </Button>
+        <Button onClick={() => setEditing(!editing)}>{editing ? 'Close emblem' : 'Edit emblem'}</Button>
       </div>
+      {editing && <EmblemEditor deal={deal} />}
       <OnAirLine deal={deal} onAir={onAir} />
     </>
   );

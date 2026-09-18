@@ -203,6 +203,23 @@ describe('App', () => {
     }
   });
 
+  it('edits the emblem by hand on a won deal, and the house style follows', () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Deals' }));
+    fireEvent.change(screen.getByLabelText(/Agreed, GBP/i), { target: { value: '2400' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Record' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Delivery, rights and sightings' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Edit emblem' }));
+
+    expect(screen.getByLabelText('Stream preview').querySelector('.ad-badge')?.textContent).toMatch(/^Ad/);
+    fireEvent.click(screen.getByRole('button', { name: 'Bottom right' }));
+    expect(useStore.getState().emblem.corner).toBe('bottom-right');
+    fireEvent.click(screen.getByRole('button', { name: 'Powered by' }));
+    const [deal] = useStore.getState().deals;
+    expect(deal?.sponsorArt?.wording).toBe('powered-by');
+    expect(screen.getByLabelText('Stream preview').textContent).toContain('Powered by');
+  });
+
   it('judges an offer against the card and says what to reply', () => {
     render(<App />);
     fireEvent.click(screen.getByRole('tab', { name: 'An offer' }));

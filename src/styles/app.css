@@ -732,3 +732,79 @@ input.swatch-custom {
     max-width: 260px;
   }
 }
+
+/* ---------- emblem editor ---------- */
+
+.emblem-editor {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+  margin-bottom: 14px;
+}
+
+@media (max-width: 900px) {
+  .emblem-editor {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* The stand-in stream frame. The badge inside it is the real renderer. */
+.emblem-frame {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border-radius: 9px;
+  border: 1px solid var(--line);
+  background: #14171d;
+  touch-action: none;
+}
+
+.emblem-frame.mock {
+  background:
+    radial-gradient(ellipse at 30% 40%, #2a3140 0%, transparent 55%),
+    radial-gradient(ellipse at 75% 70%, #23291f 0%, transparent 50%),
+    linear-gradient(180deg, #171a21, #0f1116);
+}
+
+.emblem-frame.mock::after {
+  content: 'your stream';
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--faint);
+  font-size: 13px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  pointer-events: none;
+}
+
+.emblem-frame .frame-shot {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.emblem-frame .ad-badge {
+  cursor: grab;
+}
+
+.emblem-frame .ad-badge:active {
+  cursor: grabbing;
+}
+
+.emblem-handle {
+  position: absolute;
+  right: -7px;
+  bottom: -7px;
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  background: var(--accent);
+  border: 2px solid var(--bg);
+  cursor: nwse-resize;
+}

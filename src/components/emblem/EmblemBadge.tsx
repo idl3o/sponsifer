@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react';
+import type { CSSProperties, PointerEventHandler, ReactNode } from 'react';
 import { emblemGeometry, type EmblemView } from '../../domain/emblem';
 import './emblem.css';
 
@@ -10,9 +10,21 @@ import './emblem.css';
  * what ships. Every dimension comes from `emblemGeometry`, which scales from
  * the frame's height alone; nothing here is measured in viewport units.
  *
- * The "Ad" label is always rendered. A view without it does not exist.
+ * The editor may attach a pointer handler and drop a resize handle inside;
+ * neither changes a pixel of what is drawn. The "Ad" label is always
+ * rendered. A view without it does not exist.
  */
-export function EmblemBadge({ view, frameHeight }: { view: EmblemView; frameHeight: number }) {
+export function EmblemBadge({
+  view,
+  frameHeight,
+  onPointerDown,
+  children,
+}: {
+  view: EmblemView;
+  frameHeight: number;
+  onPointerDown?: PointerEventHandler<HTMLDivElement>;
+  children?: ReactNode;
+}) {
   const g = emblemGeometry(view.style, frameHeight);
   const { style } = view;
   const classes = [
@@ -32,10 +44,11 @@ export function EmblemBadge({ view, frameHeight }: { view: EmblemView; frameHeig
     '--ad-period': `${style.reshowEveryMinutes * 60}s`,
   } as CSSProperties;
   return (
-    <div className={classes} style={vars} role="note">
+    <div className={classes} style={vars} role="note" {...(onPointerDown ? { onPointerDown } : {})}>
       {view.image && <img className="ad-art" src={view.image} alt="" draggable={false} />}
       <span className="ad-label">{view.disclosure}</span>
       {view.line && <span className="ad-line">{view.line}</span>}
+      {children}
     </div>
   );
 }
