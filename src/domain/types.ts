@@ -269,6 +269,8 @@ export interface Deal {
   /** Present only when the creator chose to seal the delivered asset. */
   seal: SealSummary | null;
   sightings: Sighting[];
+  /** The sponsor's emblem for the stream overlay. Null until the creator adds one. */
+  sponsorArt: SponsorArt | null;
   notes: string;
 }
 
@@ -338,4 +340,46 @@ export interface BoardSpec {
   accent: string;
   /** Strength of the tiled PREVIEW pattern, 0.04 to 0.3. Never zero on a preview. */
   pattern: number;
+}
+
+/** Which corner of the stream frame the emblem sits in. */
+export type EmblemCorner = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
+
+export type EmblemShape = 'pill' | 'rounded' | 'square';
+
+/** How the line beside the Ad label names the sponsor. The label itself is not a choice. */
+export type Wording = 'sponsored-by' | 'powered-by' | 'with-thanks-to' | 'brand-only';
+
+/**
+ * The creator's house style for the stream emblem: where it sits, how big,
+ * what colours, and how it moves. One per workspace, applied to every deal's
+ * overlay. The sponsor's own image and wording live on the deal.
+ */
+export interface EmblemStyle {
+  corner: EmblemCorner;
+  /** Distance from the corner, in reference units of a 960 x 540 frame, 0 to 120. */
+  inset: number;
+  /** The badge's height as a share of the frame's height, 0.03 to 0.12. */
+  size: number;
+  /** #rrggbb. The label's colour, unless the deal's art names its own. */
+  accent: string;
+  background: string;
+  text: string;
+  shape: EmblemShape;
+  /** Draw only the image and the label, with no line of text. */
+  bareLogo: boolean;
+  /** Slide in when the source first appears. */
+  entrance: boolean;
+  /** Pulse the label every so often, so a viewer who joined late still sees it. 0 is off. */
+  reshowEveryMinutes: number;
+}
+
+/** The sponsor's part of the emblem, kept on their deal. */
+export interface SponsorArt {
+  /** A PNG data URL, downscaled on upload. Empty for no image. */
+  image: string;
+  imageAspect: number;
+  wording: Wording;
+  /** The sponsor's brand colour for the label, or null for the house accent. */
+  accent: string | null;
 }

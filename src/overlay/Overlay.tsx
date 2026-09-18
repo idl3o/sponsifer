@@ -1,21 +1,35 @@
-import { useEffect, useState, type CSSProperties } from 'react';
-import { overlayFor, overlayLine, type OverlayView } from '../domain/overlay';
+import { useEffect, useState } from 'react';
+import { EmblemBadge } from '../components/emblem/EmblemBadge';
+import { overlayFor, type OverlayView } from '../domain/overlay';
 import { fetchRemote, type Fetch } from '../store/workspaceClient';
 
 /**
  * The sponsor overlay, as OBS shows it on stream.
  *
- * It reads the workspace file through the local server and draws the
- * disclosure for one won deal. It asks OBS for no permissions and times
- * nothing: an on-air log written by the thing being logged cannot tell "off
- * screen" from "not running", so the log belongs to the server.
+ * It reads the workspace file through the local server and draws the emblem
+ * for one won deal. It asks OBS for no permissions and times nothing: an
+ * on-air log written by the thing being logged cannot tell "off screen" from
+ * "not running", so the log belongs to the server.
  *
  * Whatever goes wrong, nothing goes wrong on stream. A failed read keeps the
  * last good frame, and an overlay that has never loaded draws nothing at all,
  * never an error message in front of viewers.
  */
+
+/** The viewport's height, which is the frame the emblem scales from. */
+function useFrameHeight(): number {
+  const [height, setHeight] = useState(() => window.innerHeight);
+  useEffect(() => {
+    const onResize = () => setHeight(window.innerHeight);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+  return height;
+}
+
 export function Overlay({ dealId, fetcher, pollMs = 5000 }: { dealId: string; fetcher: Fetch; pollMs?: number }) {
   const [view, setView] = useState<OverlayView | null>(null);
+  const frameHeight = useFrameHeight();
 
   useEffect(() => {
     let etag: string | null = null;
@@ -35,10 +49,5 @@ export function Overlay({ dealId, fetcher, pollMs = 5000 }: { dealId: string; fe
   }, [dealId, fetcher, pollMs]);
 
   if (!view) return null;
-  return (
-    <div className="ad-badge" style={{ '--accent': view.accent } as CSSProperties} role="note">
-      <span className="ad-label">{view.disclosure}</span>
-      <span className="ad-line">{overlayLine(view)}</span>
-    </div>
-  );
+  return <EmblemBadge view={view} frameHeight={frameHeight} />;
 }

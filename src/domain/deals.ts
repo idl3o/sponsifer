@@ -84,6 +84,7 @@ export function closeDeal(
     paidOn: '',
     seal: null,
     sightings: [],
+    sponsorArt: null,
     notes: '',
   };
 }

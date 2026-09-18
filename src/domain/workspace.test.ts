@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { SAMPLE_PROFILE, SAMPLE_PROSPECTS } from '../store/sample';
 import { DEFAULT_BOARD, MAX_IMAGE_CHARS } from './board';
+import { DEFAULT_EMBLEM } from './emblem';
 import { DEFAULT_TERMS } from './pricing';
 import type { Deal } from './types';
 import { WORKSPACE_VERSION, parseWorkspace, seqFloor, workspaceOf } from './workspace';
@@ -85,7 +86,7 @@ describe('parseWorkspace', () => {
 });
 
 describe('seqFloor', () => {
-  const slices = { profile: SAMPLE_PROFILE, terms: DEFAULT_TERMS, prospects: SAMPLE_PROSPECTS, deals: [], board: DEFAULT_BOARD };
+  const slices = { profile: SAMPLE_PROFILE, terms: DEFAULT_TERMS, prospects: SAMPLE_PROSPECTS, deals: [], board: DEFAULT_BOARD, emblem: DEFAULT_EMBLEM };
 
   it('finds the highest generated id anywhere in the workspace', () => {
     const deal = { id: 'dl-212', sightings: [{ id: 'st-230' }, { id: 'st-verify-a1b2c3d4e5-1' }] };
@@ -101,8 +102,39 @@ describe('seqFloor', () => {
 
 describe('workspaceOf', () => {
   it('saves the current format and only the fields a file carries', () => {
-    const state = { profile: SAMPLE_PROFILE, terms: DEFAULT_TERMS, prospects: [], deals: [], board: DEFAULT_BOARD, tab: 'deals', seq: 140 };
-    expect(Object.keys(workspaceOf(state)).sort()).toEqual(['board', 'deals', 'profile', 'prospects', 'terms', 'version']);
+    const state = { profile: SAMPLE_PROFILE, terms: DEFAULT_TERMS, prospects: [], deals: [], board: DEFAULT_BOARD, emblem: DEFAULT_EMBLEM, tab: 'deals', seq: 140 };
+    expect(Object.keys(workspaceOf(state)).sort()).toEqual(['board', 'deals', 'emblem', 'profile', 'prospects', 'terms', 'version']);
     expect(workspaceOf(state).version).toBe(WORKSPACE_VERSION);
+  });
+});
+
+describe('format 5: the stream emblem', () => {
+  const deal = {
+    id: 'dl-1', outcome: 'won', closedOn: '2026-09-10', platform: 'twitch', format: 'stream', niche: 'technology',
+    geo: { tier1: 1, tier2: 0, tier3: 0 }, medianViews: 90, quoted: 450,
+  };
+
+  it('gives a format 4 file the default house style and no sponsor art', () => {
+    const parsed = parseWorkspace({ ...V1_FILE, version: 4, board: DEFAULT_BOARD, deals: [deal] });
+    expect(parsed.ok && parsed.workspace.emblem).toEqual(DEFAULT_EMBLEM);
+    expect(parsed.ok && parsed.workspace.deals[0]?.sponsorArt).toBeNull();
+    expect(parsed.ok && parsed.workspace.version).toBe(5);
+  });
+
+  it('keeps the style within its ranges and refuses a bad colour', () => {
+    const parsed = parseWorkspace({ ...V1_FILE, version: 5, emblem: { ...DEFAULT_EMBLEM, size: 9, inset: -5 } });
+    expect(parsed.ok && parsed.workspace.emblem.size).toBe(0.12);
+    expect(parsed.ok && parsed.workspace.emblem.inset).toBe(0);
+    expect(parseWorkspace({ ...V1_FILE, version: 5, emblem: { ...DEFAULT_EMBLEM, background: 'black' } })).toEqual({
+      ok: false, error: expect.stringContaining('emblem.background'),
+    });
+  });
+
+  it('validates sponsor art like the board image, naming the deal', () => {
+    const art = { image: 'data:image/svg+xml;base64,PHN2Zz4=', imageAspect: 1, wording: 'powered-by', accent: null };
+    const parsed = parseWorkspace({ ...V1_FILE, version: 5, deals: [{ ...deal, sponsorArt: art }] });
+    expect(parsed).toEqual({ ok: false, error: expect.stringContaining('deals[0].sponsorArt.image') });
+    const good = parseWorkspace({ ...V1_FILE, version: 5, deals: [{ ...deal, sponsorArt: { ...art, image: 'data:image/png;base64,iVBORw0KGgo=' } }] });
+    expect(good.ok && good.workspace.deals[0]?.sponsorArt?.wording).toBe('powered-by');
   });
 });

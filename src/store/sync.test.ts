@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createStore, type StoreApi } from 'zustand/vanilla';
 import { DEFAULT_BOARD } from '../domain/board';
+import { DEFAULT_EMBLEM } from '../domain/emblem';
 import { DEFAULT_TERMS } from '../domain/pricing';
 import { workspaceOf, type Workspace } from '../domain/workspace';
 import { SAMPLE_PROFILE, SAMPLE_PROSPECTS } from './sample';
@@ -18,6 +19,7 @@ const SAMPLE: Workspace = workspaceOf({
   prospects: SAMPLE_PROSPECTS,
   deals: [],
   board: DEFAULT_BOARD,
+  emblem: DEFAULT_EMBLEM,
 });
 
 const named = (name: string): Workspace => ({ ...SAMPLE, profile: { ...SAMPLE.profile, name } });
@@ -86,7 +88,8 @@ function fakeServer(initial: Workspace | string | null) {
 function makeStore(start: Workspace = SAMPLE): StoreApi<SyncTarget> {
   return createStore<SyncTarget>((set) => ({
     ...start,
-    importAll: (ws) => set({ profile: ws.profile, terms: ws.terms, prospects: ws.prospects, deals: ws.deals, board: ws.board }),
+    importAll: (ws) =>
+      set({ profile: ws.profile, terms: ws.terms, prospects: ws.prospects, deals: ws.deals, board: ws.board, emblem: ws.emblem }),
   }));
 }
 

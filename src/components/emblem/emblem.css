@@ -1,0 +1,73 @@
+/*
+ * The sponsor emblem, drawn identically in the editor and on stream. Every
+ * size is a custom property set by EmblemBadge from the frame's height, so
+ * the same style at the same height is the same pixels wherever it draws.
+ * The badge positions itself inside whatever frame contains it: the editor's
+ * preview, or the OBS source's viewport.
+ */
+
+.ad-badge {
+  position: absolute;
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--ad-h) * 0.22);
+  height: var(--ad-h);
+  padding: 0 calc(var(--ad-h) * 0.32) 0 calc(var(--ad-h) * 0.18);
+  border-radius: var(--ad-radius);
+  background: var(--ad-bg);
+  color: var(--ad-text);
+  box-shadow: 0 calc(var(--ad-h) * 0.08) calc(var(--ad-h) * 0.32) rgba(0, 0, 0, 0.35);
+  font: 600 var(--ad-font) / 1 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  user-select: none;
+  box-sizing: border-box;
+}
+
+.ad-top-left { top: var(--ad-inset); left: var(--ad-inset); }
+.ad-top-right { top: var(--ad-inset); right: var(--ad-inset); }
+.ad-bottom-left { bottom: var(--ad-inset); left: var(--ad-inset); }
+.ad-bottom-right { bottom: var(--ad-inset); right: var(--ad-inset); }
+
+.ad-art {
+  height: calc(var(--ad-h) * 0.72);
+  width: auto;
+  max-width: calc(var(--ad-h) * 3);
+  object-fit: contain;
+  border-radius: calc(var(--ad-radius) * 0.5);
+}
+
+.ad-label {
+  padding: calc(var(--ad-h) * 0.1) calc(var(--ad-h) * 0.24);
+  border-radius: calc(var(--ad-radius) * 0.6);
+  background: var(--ad-accent);
+  color: #0d0f13;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* Motion. The entrance runs once; the re-show pulses the label on the style's
+   period, which is the FTC's "periodic disclosure" for viewers who join late. */
+
+.ad-enter { animation: ad-enter 600ms ease-out both; }
+
+.ad-top-left.ad-enter, .ad-bottom-left.ad-enter { --ad-from: translateX(-40%); }
+.ad-top-right.ad-enter, .ad-bottom-right.ad-enter { --ad-from: translateX(40%); }
+
+@keyframes ad-enter {
+  from { opacity: 0; transform: var(--ad-from, translateX(-40%)); }
+  to { opacity: 1; transform: none; }
+}
+
+.ad-reshow .ad-label { animation: ad-pulse var(--ad-period) linear infinite; }
+
+@keyframes ad-pulse {
+  0%, 96% { transform: none; box-shadow: none; }
+  97% { transform: scale(1.18); box-shadow: 0 0 0 calc(var(--ad-h) * 0.12) rgba(255, 255, 255, 0.35); }
+  100% { transform: none; box-shadow: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ad-enter, .ad-reshow .ad-label { animation: none; }
+}

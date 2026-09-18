@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware';
 import { produce } from 'immer';
 import { FORMATS_BY_PLATFORM } from '../domain/benchmarks';
 import { DEFAULT_BOARD } from '../domain/board';
+import { DEFAULT_EMBLEM } from '../domain/emblem';
 import { DEFAULT_TERMS } from '../domain/pricing';
 import type {
   BoardSpec,
@@ -10,10 +11,12 @@ import type {
   CreatorProfile,
   Deal,
   DealTerms,
+  EmblemStyle,
   Platform,
   Prospect,
   ProofPoint,
   Sighting,
+  SponsorArt,
 } from '../domain/types';
 import { WORKSPACE_VERSION, parseWorkspace, seqFloor, type Workspace } from '../domain/workspace';
 import { SAMPLE_PROFILE, SAMPLE_PROSPECTS } from './sample';
@@ -26,6 +29,8 @@ interface State {
   prospects: Prospect[];
   deals: Deal[];
   board: BoardSpec;
+  /** The creator's house style for the stream emblem. */
+  emblem: EmblemStyle;
   tab: Tab;
   /** Prospect currently open in the outreach composer. */
   activeProspectId: string | null;
@@ -58,6 +63,9 @@ interface Actions {
   addSighting: (dealId: string, sighting: Omit<Sighting, 'id'>) => void;
   removeSighting: (dealId: string, sightingId: string) => void;
   setBoard: (patch: Partial<BoardSpec>) => void;
+  setEmblem: (patch: Partial<EmblemStyle>) => void;
+  /** The sponsor's part of a deal's emblem, or null to remove it. */
+  setSponsorArt: (dealId: string, art: SponsorArt | null) => void;
   /** Replace all stored data with a workspace that has already been validated. */
   importAll: (workspace: Workspace) => void;
   resetToSample: () => void;
@@ -69,12 +77,13 @@ const initialState: State = {
   prospects: SAMPLE_PROSPECTS,
   deals: [],
   board: DEFAULT_BOARD,
+  emblem: DEFAULT_EMBLEM,
   tab: 'rate-card',
   activeProspectId: null,
   seq: 100,
 };
 
-type Persisted = Pick<State, 'profile' | 'terms' | 'prospects' | 'deals' | 'board' | 'seq'>;
+type Persisted = Pick<State, 'profile' | 'terms' | 'prospects' | 'deals' | 'board' | 'emblem' | 'seq'>;
 
 /**
  * Upgrade a save written by an older version. A save that fails validation is
@@ -85,16 +94,16 @@ function migrate(persisted: unknown, version: number): Persisted {
   const parsed = parseWorkspace({ ...(persisted as object), version: Math.max(1, version) });
   const seq = (persisted as { seq?: unknown } | null)?.seq;
   if (parsed.ok) {
-    const { profile, terms, prospects, deals, board } = parsed.workspace;
-    return { profile, terms, prospects, deals, board, seq: typeof seq === 'number' ? seq : 100 };
+    const { profile, terms, prospects, deals, board, emblem } = parsed.workspace;
+    return { profile, terms, prospects, deals, board, emblem, seq: typeof seq === 'number' ? seq : 100 };
   }
   try {
     localStorage.setItem(`sponsifable-unreadable-v${version}`, JSON.stringify(persisted));
   } catch {
     // Storage full or blocked. Nothing more can be done from here.
   }
-  const { profile, terms, prospects, deals, board } = initialState;
-  return { profile, terms, prospects, deals, board, seq: initialState.seq };
+  const { profile, terms, prospects, deals, board, emblem } = initialState;
+  return { profile, terms, prospects, deals, board, emblem, seq: initialState.seq };
 }
 
 /** Where this browser keeps its copy. */
@@ -278,6 +287,7 @@ function workspaceActions(set: SetState): Pick<Actions, 'setTab' | 'importAll' |
         prospects: workspace.prospects,
         deals: workspace.deals,
         board: workspace.board,
+        emblem: workspace.emblem,
         activeProspectId: null,
         seq: Math.max(s.seq, seqFloor(workspace)),
       })),
@@ -288,6 +298,7 @@ function workspaceActions(set: SetState): Pick<Actions, 'setTab' | 'importAll' |
         prospects: SAMPLE_PROSPECTS,
         deals: [],
         board: DEFAULT_BOARD,
+        emblem: DEFAULT_EMBLEM,
         activeProspectId: null,
       }),
   };
@@ -316,6 +327,12 @@ export const useStore = create<State & Actions>()(
         ...prospectActions(edit, set),
         ...dealActions(edit),
         setBoard: (patch) => edit((s) => void Object.assign(s.board, patch)),
+        setEmblem: (patch) => edit((s) => void Object.assign(s.emblem, patch)),
+        setSponsorArt: (dealId, art) =>
+          edit((s) => {
+            const deal = s.deals.find((d) => d.id === dealId);
+            if (deal) deal.sponsorArt = art;
+          }),
       };
     },
     {
@@ -331,6 +348,7 @@ export const useStore = create<State & Actions>()(
         prospects: s.prospects,
         deals: s.deals,
         board: s.board,
+        emblem: s.emblem,
         seq: s.seq,
       }),
     },

@@ -17,7 +17,7 @@ ORIGIN = f"http://127.0.0.1:{PORT}"
 
 
 def ws(**extra):
-    return {"version": 4, "profile": {"name": "Ada"}, "terms": {}, "prospects": [], "deals": [], "board": {}, **extra}
+    return {"version": 5, "profile": {"name": "Ada"}, "terms": {}, "prospects": [], "deals": [], "board": {}, **extra}
 
 
 @pytest.fixture
@@ -143,7 +143,7 @@ def test_a_write_from_a_stale_read_is_refused_and_the_file_kept(ctx):
 
 @pytest.mark.parametrize(
     "body",
-    [ws(version=5), ws(version=3), {**ws(), "deals": None}, [ws()], "workspace"],
+    [ws(version=6), ws(version=4), {**ws(), "deals": None}, [ws()], "workspace"],
     ids=["newer", "older", "no-deals", "a-list", "a-string"],
 )
 def test_a_body_that_is_not_a_current_workspace_is_never_written(ctx, body):

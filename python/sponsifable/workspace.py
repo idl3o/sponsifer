@@ -22,7 +22,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 #: The newest workspace format this CLI understands. Mirrors WORKSPACE_VERSION.
-SUPPORTED_VERSION = 4
+SUPPORTED_VERSION = 5
 #: The first format with a deal log, which is all the CLI reads.
 FIRST_WITH_DEALS = 2
 #: The revision of a file that does not exist. No SHA-256 digest can equal it.

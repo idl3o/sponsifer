@@ -9,7 +9,7 @@ from sponsifable import workspace
 
 
 def ws(**extra):
-    return {"version": 4, "profile": {"name": "Ada"}, "terms": {}, "prospects": [], "deals": [], "board": {}, **extra}
+    return {"version": 5, "profile": {"name": "Ada"}, "terms": {}, "prospects": [], "deals": [], "board": {}, **extra}
 
 
 def test_the_served_workspace_sits_beside_the_ledger(tmp_path: Path):

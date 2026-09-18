@@ -1,6 +1,7 @@
 import { act, cleanup, render } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_BOARD } from '../domain/board';
+import { DEFAULT_EMBLEM } from '../domain/emblem';
 import { DEFAULT_TERMS } from '../domain/pricing';
 import { workspaceOf } from '../domain/workspace';
 import { SAMPLE_PROFILE, SAMPLE_PROSPECTS } from '../store/sample';
@@ -18,7 +19,7 @@ const deal = {
   flooredByProduction: true, fitAtClose: 70, agreed: 400, deliveredOn: '', paidOn: '', seal: null, sightings: [], notes: '',
 };
 const FILE = JSON.stringify(
-  workspaceOf({ profile: SAMPLE_PROFILE, terms: DEFAULT_TERMS, prospects: SAMPLE_PROSPECTS, deals: [deal] as never, board: DEFAULT_BOARD }),
+  workspaceOf({ profile: SAMPLE_PROFILE, terms: DEFAULT_TERMS, prospects: SAMPLE_PROSPECTS, deals: [deal] as never, board: DEFAULT_BOARD, emblem: DEFAULT_EMBLEM }),
 );
 
 const answer = () =>
@@ -59,6 +60,18 @@ describe('Overlay', () => {
     await tick(5000);
     expect(fetcher.mock.calls.length).toBeGreaterThan(3);
     expect(container.textContent).toBe('AdSponsored by Hetzner');
+  });
+
+  it('draws the sponsor art, and the label with it, when the deal has one', async () => {
+    const art = { image: 'data:image/png;base64,iVBORw0KGgo=', imageAspect: 2, wording: 'powered-by', accent: '#ff0000' };
+    const withArt = JSON.stringify({ ...JSON.parse(FILE), deals: [{ ...deal, sponsorArt: art }] });
+    const fetcher = vi.fn(async () =>
+      new Response(withArt, { status: 200, headers: { 'Content-Type': 'application/json', ETag: '"r2"' } }));
+    const { container } = render(<Overlay dealId="dl-104" fetcher={fetcher} />);
+    await tick(0);
+    expect(container.querySelector('img.ad-art')?.getAttribute('src')).toBe(art.image);
+    expect(container.textContent).toBe('AdPowered by Hetzner');
+    expect((container.querySelector('.ad-badge') as HTMLElement).style.getPropertyValue('--ad-accent')).toBe('#ff0000');
   });
 
   it('draws nothing for a deal that is not a won deal in the file', async () => {

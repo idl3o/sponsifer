@@ -94,7 +94,7 @@ function SyncLine() {
 function DataControls() {
   const fileRef = useRef<HTMLInputElement>(null);
   const workspace = useStore(
-    useShallow((s) => ({ profile: s.profile, terms: s.terms, prospects: s.prospects, deals: s.deals, board: s.board })),
+    useShallow((s) => ({ profile: s.profile, terms: s.terms, prospects: s.prospects, deals: s.deals, board: s.board, emblem: s.emblem })),
   );
   const importAll = useStore((s) => s.importAll);
   const adoptImport = useSyncStatus((s) => s.adoptImport);

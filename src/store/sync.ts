@@ -82,7 +82,7 @@ export interface SyncEnv {
 /** The localStorage key holding the revision this browser last read or wrote. */
 export const SEEN_KEY = 'sponsifable-sync-revision';
 
-const SLICES = ['profile', 'terms', 'prospects', 'deals', 'board'] as const;
+const SLICES = ['profile', 'terms', 'prospects', 'deals', 'board', 'emblem'] as const;
 
 interface Session {
   store: SyncedStore;

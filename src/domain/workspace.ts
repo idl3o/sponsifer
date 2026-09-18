@@ -2,6 +2,7 @@ import { PRODUCT } from '../brand';
 import { FORMATS_BY_PLATFORM, NICHE_LABEL } from './benchmarks';
 import { DEFAULT_BOARD, MAX_IMAGE_CHARS, PATTERN_RANGE } from './board';
 import { paidDaysFor } from './deals';
+import { DEFAULT_ART, DEFAULT_EMBLEM, EMBLEM_INSET, EMBLEM_SIZE } from './emblem';
 import { DEFAULT_TERMS } from './pricing';
 import type {
   BoardSpec,
@@ -9,6 +10,7 @@ import type {
   CreatorProfile,
   Deal,
   DealTerms,
+  EmblemStyle,
   Format,
   GeoSplit,
   Niche,
@@ -17,6 +19,7 @@ import type {
   ProofPoint,
   SealSummary,
   Sighting,
+  SponsorArt,
   UsageRights,
 } from './types';
 
@@ -33,9 +36,9 @@ import type {
 /**
  * Bump when the shape changes, and teach `parseWorkspace` the old shape.
  * 1: first release. 2: the deal log. 3: declared spend and the introductory rate.
- * 4: the shop board.
+ * 4: the shop board. 5: the stream emblem, and each deal's sponsor art.
  */
-export const WORKSPACE_VERSION = 4;
+export const WORKSPACE_VERSION = 5;
 
 export interface Workspace {
   version: number;
@@ -44,6 +47,7 @@ export interface Workspace {
   prospects: Prospect[];
   deals: Deal[];
   board: BoardSpec;
+  emblem: EmblemStyle;
 }
 
 export type ParseResult = { ok: true; workspace: Workspace } | { ok: false; error: string };
@@ -257,6 +261,49 @@ function parseBoard(value: unknown): BoardSpec {
   };
 }
 
+const CORNERS = ['top-left', 'top-right', 'bottom-left', 'bottom-right'] as const;
+const SHAPES = ['pill', 'rounded', 'square'] as const;
+const WORDINGS = ['sponsored-by', 'powered-by', 'with-thanks-to', 'brand-only'] as const;
+
+function colour(value: unknown, path: string, fallback: string): string {
+  const c = str(value, path, fallback);
+  if (!HEX_COLOUR.test(c)) throw new Invalid(`${path} should be a colour like #e2b658`);
+  return c;
+}
+
+/** The stream emblem's house style. Absent before format 5, when it takes the defaults. */
+function parseEmblem(value: unknown): EmblemStyle {
+  if (value === undefined) return { ...DEFAULT_EMBLEM };
+  const o = obj(value, 'emblem');
+  const d = DEFAULT_EMBLEM;
+  const reshow = num(o.reshowEveryMinutes, 'emblem.reshowEveryMinutes', d.reshowEveryMinutes);
+  return {
+    corner: oneOf(o.corner ?? d.corner, CORNERS, 'emblem.corner'),
+    inset: Math.min(EMBLEM_INSET.max, Math.max(EMBLEM_INSET.min, num(o.inset, 'emblem.inset', d.inset))),
+    size: Math.min(EMBLEM_SIZE.max, Math.max(EMBLEM_SIZE.min, num(o.size, 'emblem.size', d.size))),
+    accent: colour(o.accent, 'emblem.accent', d.accent),
+    background: colour(o.background, 'emblem.background', d.background),
+    text: colour(o.text, 'emblem.text', d.text),
+    shape: oneOf(o.shape ?? d.shape, SHAPES, 'emblem.shape'),
+    bareLogo: bool(o.bareLogo, 'emblem.bareLogo', d.bareLogo),
+    entrance: bool(o.entrance, 'emblem.entrance', d.entrance),
+    reshowEveryMinutes: Math.max(0, reshow),
+  };
+}
+
+/** A deal's sponsor art. Null, and absent before format 5, means none yet. */
+function parseSponsorArt(value: unknown, path: string): SponsorArt | null {
+  if (value === undefined || value === null) return null;
+  const o = obj(value, path);
+  const accent = o.accent === null || o.accent === undefined ? null : colour(o.accent, `${path}.accent`, DEFAULT_EMBLEM.accent);
+  return {
+    image: parseImage(o.image, `${path}.image`),
+    imageAspect: Math.max(0, num(o.imageAspect, `${path}.imageAspect`, DEFAULT_ART.imageAspect)),
+    wording: oneOf(o.wording ?? DEFAULT_ART.wording, WORDINGS, `${path}.wording`),
+    accent,
+  };
+}
+
 /** A licence window: a whole number of days, or null for unlimited. */
 function parsePaidDays(value: unknown, terms: DealTerms, path: string): number | null {
   if (value === undefined) return paidDaysFor(terms.usageRights);
@@ -297,6 +344,7 @@ function parseDeal(value: unknown, path: string): Deal {
     sightings: arr(o.sightings ?? [], `${path}.sightings`).map((s, i) =>
       parseSighting(s, `${path}.sightings[${i}]`),
     ),
+    sponsorArt: parseSponsorArt(o.sponsorArt, `${path}.sponsorArt`),
     notes: str(o.notes, `${path}.notes`, ''),
   };
 }
@@ -326,6 +374,7 @@ export function parseWorkspace(input: unknown): ParseResult {
         prospects: arr(o.prospects, 'prospects').map((p, i) => parseProspect(p, `prospects[${i}]`)),
         deals: arr(o.deals ?? [], 'deals').map((d, i) => parseDeal(d, `deals[${i}]`)),
         board: parseBoard(o.board),
+        emblem: parseEmblem(o.emblem),
       },
     };
   } catch (error) {
@@ -339,8 +388,8 @@ export type WorkspaceSlices = Omit<Workspace, 'version'>;
 
 /** The workspace as it is saved: the current format, and only the fields a file carries. */
 export function workspaceOf(slices: WorkspaceSlices): Workspace {
-  const { profile, terms, prospects, deals, board } = slices;
-  return { version: WORKSPACE_VERSION, profile, terms, prospects, deals, board };
+  const { profile, terms, prospects, deals, board, emblem } = slices;
+  return { version: WORKSPACE_VERSION, profile, terms, prospects, deals, board, emblem };
 }
 
 const GENERATED_ID = /^(?:ch|pp|pr|dl|st)-(\d+)$/;
