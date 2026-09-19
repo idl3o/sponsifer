@@ -60,6 +60,7 @@
 
 - **The on-air log is append-only, and lives beside the ledger,** at `~/.sponsifable/onair/<deal>.jsonl`, never inside the workspace: it grows per stream and it is evidence. `onair.delivery()` is the only reader of its shape, so the app and a delivery report cannot count differently.
 - **On air means live *and* in the program feed.** Showing in preview is not being broadcast. Events are prompts; the `GetSourceActive` poll is the arbiter, because activation signals have been unreliable in studio mode. Every disagreement is recorded and the summary carries the count. Never smooth them away.
+- **The headline time on air is a union, never a sum.** With several placements, `union_seconds` counts a moment once however many were up in it; each placement's own total sits beside it. Summing them would bill the sponsor's minutes twice.
 - **An interval's offset into the VOD is null unless the logger saw the stream start.** The log's job is to be an index into the recording, and an offset from a start nobody saw is a guess.
 - **`python/sponsifable/obs.py` is the one copy of the protocol layer.** `scripts/obs_probe.py` imports it, falling back to adding `python/` to `sys.path` when the package is not installed.
 - `src/store/sync.ts` and `src/store/workspaceClient.ts` are the I/O edge for the workspace, outside `src/domain`. `sync.ts` takes its fetch, storage and focus hook as arguments, so it is tested in node.
@@ -72,6 +73,9 @@
 - **The drag snaps to a corner with a clamped inset** (`snapToCorner`), so a position can never be off the frame. Do not add free placement without a rule that keeps the badge on screen.
 - **Motion is CSS only.** An entrance once; a label pulse on the style's period, which is the FTC's periodic disclosure for live streams. No timers in the overlay page.
 - **The editor's own-frame screenshot is a `blob:` URL in component state, never stored.**
+- **A placement's kind is in the address, not the workspace.** Corner emblem, lower third, segment slate, break card: `overlay.html?deal=<id>&kind=<kind>`, with the emblem's address naming none so sources already in OBS keep working. The look is the house style and the content the deal's sponsor art, so adding a kind needs no format bump. Do not give a kind stored fields without deciding that it is worth one.
+- **Each kind has a conventional OBS source name, in two places on purpose:** `PLACEMENTS` in `src/domain/emblem.ts`, shown beside the address to paste, and `CONVENTIONAL_SOURCES` in `python/sponsifable/onair.py`, which the logger watches. Change one and change the other; the log finds a placement by its name and by nothing else.
+- **`bareLogo` is the corner emblem's alone.** A band, a slate or a card with no words says nothing, so they always carry the line.
 
 ## Gotchas already resolved — do not regress
 
@@ -88,6 +92,7 @@
 - Channel cards and proof points both render a button labelled "Remove". Any selector for one must exclude the other.
 - **Workspace format changes go through `src/domain/workspace.ts`.** Bump `WORKSPACE_VERSION`, teach `parseWorkspace` the old shape, and bump `SUPPORTED_VERSION` in `python/sponsifable/workspace.py`. The localStorage key stays `sponsifable-v1` on purpose; `persist.version` tracks the format. An unreadable save is copied to `sponsifable-unreadable-v<n>`, never dropped. The file's `version` must equal `SUPPORTED_VERSION`, or the server refuses the write.
 - **After a workspace format bump, restart `sponsifable serve`.** The server checks `version == SUPPORTED_VERSION` on every write with the value it loaded at start, so a running server from before the bump refuses the app's first write with 422, and the app shows "Not saved to the file: expected workspace format N". The bundle on disk updates under a running server; its Python does not.
+- **The play test needs a fresh workspace when run against a served app.** It ends by deleting every channel, and the server keeps that; the next run then times out waiting for "Median views per post". Delete the workspace file first. Against `npm run dev` each run starts from an empty browser and the problem does not arise.
 - **The workspace file carries no `seq`.** `importAll` sets `seq = max(seq, seqFloor(workspace))`, or a loaded file's ids could be reused.
 - **`npm run dev` alone saves to the browser only.** Run `npm run dev:api` beside it: Vite proxies `/api` to 127.0.0.1:5181. On a first run the app's probe for the file logs a 404 in the console; that is the missing file, not a fault.
 - **Fetch settles on headers, not on the body.** A response whose body is never read keeps the request open: it stalls `networkidle` and leaks a connection per write in a browser that stays open for a whole stream. `workspaceClient.ts` drains every body it does not parse, by reading it — cancelling aborts the request instead, which shows up as a failed request.
