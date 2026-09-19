@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { FORMAT_LABEL, PLATFORM_LABEL } from '../domain/benchmarks';
 import { priceOverrun, rateSubmissionUrl } from '../domain/deals';
 import { PLACEMENTS } from '../domain/emblem';
-import { onAirSentence, reportSentence } from '../domain/onair';
+import { onAirSentence, placementSentence, reportSentence } from '../domain/onair';
 import { overlayUrl } from '../domain/overlay';
 import type { Deal, Sighting } from '../domain/types';
 import { useSyncStatus } from '../store/sync';
@@ -188,7 +188,7 @@ function OnAirLine({ deal, onAir }: { deal: Deal; onAir: OnAir | null }) {
   }
   return (
     <p className="note">
-      {onAirSentence(onAir.summary)} {reportSentence(onAir.summary, deal.id)}
+      {onAirSentence(onAir.summary)} {placementSentence(onAir.summary)} {reportSentence(onAir.summary, deal.id)}
     </p>
   );
 }

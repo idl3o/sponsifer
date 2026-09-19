@@ -7,6 +7,8 @@
  */
 
 export interface OnAirInterval {
+  /** The OBS source that was on air: which placement this was. */
+  source: string;
   start: string;
   end: string;
   seconds: number;
@@ -14,12 +16,23 @@ export interface OnAirInterval {
   streamOffsetSeconds: number | null;
 }
 
+/** What one placement adds up to. */
+export interface OnAirPlacement {
+  source: string;
+  totalSeconds: number;
+  intervals: number;
+  openSince: string | null;
+}
+
 export interface OnAirSummary {
   deal: string;
-  source: string;
+  /** The OBS sources the logger watched, the corner emblem's first. */
+  sources: string[];
   streamStartedAt: string | null;
   startObserved: boolean;
   intervals: OnAirInterval[];
+  placements: OnAirPlacement[];
+  /** Time with at least one placement on air; two up at once are counted once. */
   totalSeconds: number;
   /** Direct checks of OBS that contradicted an event it had sent. */
   disagreements: number;
@@ -54,6 +67,13 @@ export function onAirSentence(summary: OnAirSummary): string {
   }
   if (!summary.startObserved && n > 0) parts.push('offsets into the recording unknown');
   return `${parts.join('; ')}.`;
+}
+
+/** Each placement's own time on air, when the deal had more than one. Empty otherwise. */
+export function placementSentence(summary: OnAirSummary): string {
+  const up = summary.placements.filter((p) => p.intervals > 0);
+  if (up.length < 2) return '';
+  return `${up.map((p) => `${p.source} ${spanOf(p.totalSeconds)}`).join(', ')}.`;
 }
 
 /** The report to send, or what to run to make one. */

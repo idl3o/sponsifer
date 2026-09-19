@@ -1,10 +1,15 @@
-"""The on-air log: when the sponsor's placement was actually in the program feed.
+"""The on-air log: when each of the sponsor's placements was actually in the program feed.
 
 What this is for. A sponsor pays for time on screen in front of an audience.
 The creator's word for it is not evidence, and neither is this log on its own.
 Its job is to be an **index into the VOD**: each interval is a wall-clock UTC
 time and, where the logger saw the stream start, an offset from that start, so
 the sponsor can open the recording at the minute stated and see the placement.
+
+A deal can have several placements on a stream: a corner emblem, a lower
+third, a segment slate, a break card. Each is its own browser source in OBS,
+found by its name, and the log keeps an on-air state for each, so a report can
+say how long each one was up rather than one blended figure.
 
 The rules it keeps, all of them from `docs/research/obs-extensibility-2026-09.md`:
 
@@ -33,6 +38,11 @@ from .obs import Obs, OnAir, utc_now
 #: Logs live beside the ledger, one file per deal, never inside the workspace.
 LOG_DIR = "onair"
 
+#: What each placement's browser source is called in OBS, the corner emblem
+#: first. Mirrors PLACEMENTS in src/domain/emblem.ts, which shows each name
+#: beside the address to paste.
+CONVENTIONAL_SOURCES = ("Sponsor overlay", "Sponsor lower third", "Sponsor slate", "Sponsor card")
+
 
 def log_path(home: Path, deal_id: str) -> Path:
     """Where a deal's on-air log is appended."""
@@ -51,37 +61,65 @@ class Session:
     """One run of the logger: OBS's events and polls, written down as they happen."""
 
     deal_id: str
-    source: str
+    #: The OBS sources to watch: one name, or several.
+    sources: list[str] | str
     write: Callable[[dict[str, Any]], None]
-    state: OnAir = field(default_factory=OnAir)
-    #: When the stream went live, and whether this logger saw it start.
+    states: dict[str, OnAir] = field(default_factory=dict)
+    #: Whether OBS is streaming, as last known, and when it went live.
+    live: bool = False
     stream_started_at: str | None = None
     start_observed: bool = False
+    disagreements: int = 0
+
+    def __post_init__(self) -> None:
+        names = [self.sources] if isinstance(self.sources, str) else list(self.sources)
+        self.sources = list(dict.fromkeys(names))
+        self.states = {name: OnAir() for name in self.sources}
 
     def record(self, kind: str, **fields: Any) -> None:
         self.write({"at": utc_now(), "kind": kind, "deal": self.deal_id, **fields})
 
+    def _keep_present(self, obs: Obs) -> list[str]:
+        """Watch only the sources OBS actually has, and return the ones it lacks."""
+        inputs = obs.request("GetInputList").get("inputs")
+        if inputs is None:  # an OBS that will not say; watch what was asked for
+            return []
+        present = {item.get("inputName") for item in inputs}
+        missing = [name for name in self.sources if name not in present]
+        self.sources = [name for name in self.sources if name in present]
+        self.states = {name: self.states[name] for name in self.sources}
+        return missing
+
     def begin(self, obs: Obs) -> None:
         """Write the session's header, then take the first reading from OBS itself."""
         version = obs.request("GetVersion")
-        self.record("session", source=self.source, obsVersion=version.get("obsVersion"),
+        asked = list(self.sources)
+        missing = self._keep_present(obs)
+        if not self.sources:
+            raise RuntimeError(f"none of these sources exist in OBS: {', '.join(asked)}")
+        self.record("session", sources=self.sources, missing=missing, obsVersion=version.get("obsVersion"),
                     websocketVersion=version.get("obsWebSocketVersion"))
         self.poll(obs, first=True)
 
-    def _stream(self, live: bool, at: str, observed: bool) -> None:
-        """Remember when the stream started, and whether the start was seen rather than found."""
+    def _stream(self, live: bool, at: str, observed: bool, by: str) -> None:
+        """The stream started or stopped: remember when, and move every placement with it."""
         if live and self.stream_started_at is None:
             self.stream_started_at, self.start_observed = at, observed
             self.record("stream", live=True, startObserved=observed)
-        elif not live and self.stream_started_at is not None:
+        self.live = live
+        # Close each placement's interval before the stream's start is forgotten,
+        # so the closing lines still carry their offsets into the recording.
+        for name, state in self.states.items():
+            self._transition(name, state.stream(live, at), by, at)
+        if not live and self.stream_started_at is not None:
             self.record("stream", live=False)
             self.stream_started_at, self.start_observed = None, False
 
-    def _transition(self, change: str | None, by: str, at: str) -> None:
+    def _transition(self, source: str, change: str | None, by: str, at: str) -> None:
         if change is None:
             return
         offset = offset_seconds(self.stream_started_at, at) if self.start_observed else None
-        self.record("onair", state=change, by=by, at_=at, streamOffsetSeconds=offset)
+        self.record("onair", source=source, state=change, by=by, at_=at, streamOffsetSeconds=offset)
 
     def event(self, message: dict[str, Any]) -> None:
         """React to one OBS event. Events are prompts; the poll is the arbiter."""
@@ -90,28 +128,36 @@ class Session:
             "OBS_WEBSOCKET_OUTPUT_STARTED",
             "OBS_WEBSOCKET_OUTPUT_STOPPED",
         ):
-            live = bool(data["outputActive"])
-            self._stream(live, at, observed=True)
-            self._transition(self.state.stream(live, at), "event", at)
-        elif kind == "InputActiveStateChanged" and data.get("inputName") == self.source:
-            self._transition(self.state.source(bool(data["videoActive"]), at), "event", at)
+            self._stream(bool(data["outputActive"]), at, observed=True, by="event")
+        elif kind == "InputActiveStateChanged" and data.get("inputName") in self.states:
+            name = data["inputName"]
+            self._transition(name, self.states[name].source(bool(data["videoActive"]), at), "event", at)
         elif kind == "CurrentProgramSceneChanged":
             self.record("scene", scene=data.get("sceneName"))
 
     def poll(self, obs: Obs, first: bool = False) -> None:
         """Ask OBS directly. Where the poll and the events disagree, the poll wins and it is written down."""
         live = bool(obs.request("GetStreamStatus")["outputActive"])
-        active = bool(obs.request("GetSourceActive", {"sourceName": self.source})["videoActive"])
         at = utc_now()
-        self._stream(live, at, observed=not first)
-        disagreed, change = self.state.poll(live, active, at)
-        if disagreed and not first:
-            self.record("disagreement", live=live, active=active)
-        self._transition(change, "poll", at)
+        if live != self.live:
+            if not first:
+                self._disagree(live=live)
+            self._stream(live, at, observed=not first, by="poll")
+        for name, state in self.states.items():
+            active = bool(obs.request("GetSourceActive", {"sourceName": name})["videoActive"])
+            disagreed, change = state.poll(live, active, at)
+            if disagreed and not first:
+                self._disagree(source=name, live=live, active=active)
+            self._transition(name, change, "poll", at)
+
+    def _disagree(self, **fields: Any) -> None:
+        self.disagreements += 1
+        self.record("disagreement", **fields)
 
     def end(self) -> None:
         """Close the session. An interval still open is left open: the log says what it saw."""
-        self.record("end", openSince=self.state.since, disagreements=self.state.disagreements)
+        still_open = {name: state.since for name, state in self.states.items() if state.since}
+        self.record("end", open=still_open, disagreements=self.disagreements)
 
 
 def follow(obs: Obs, session: Session, poll_every: float = 2.0, polls: int | None = None) -> None:
@@ -139,8 +185,9 @@ def offset_seconds(start: str | None, at: str) -> float | None:
 
 @dataclass(frozen=True)
 class Interval:
-    """One stretch of being on air, as a time and as a place in the recording."""
+    """One stretch of one placement being on air, as a time and as a place in the recording."""
 
+    source: str
     start: str
     end: str
     seconds: float
@@ -149,30 +196,50 @@ class Interval:
 
 
 @dataclass(frozen=True)
+class PlacementTotal:
+    """What one placement adds up to."""
+
+    source: str
+    total_seconds: float
+    intervals: int
+    #: An interval the log never saw end, because the logger stopped first.
+    open_since: str | None
+
+
+@dataclass(frozen=True)
 class Delivery:
     """What a log adds up to. The input to a delivery report, and to nothing else."""
 
     deal_id: str
-    source: str
+    sources: list[str]
+    #: Every interval of every placement, in the order they began.
     intervals: list[Interval]
+    placements: list[PlacementTotal]
+    #: Time with at least one placement on air. Two up at once are not counted twice.
     total_seconds: float
     #: Polls that contradicted the events. A report that hides these is worth less.
     disagreements: int
-    #: An interval the log never saw end, because the logger stopped first.
+    #: The earliest interval the log never saw end.
     open_since: str | None
     stream_started_at: str | None
     start_observed: bool
 
     def to_json(self) -> dict[str, Any]:
-        """The shape a delivery report embeds."""
+        """The shape a delivery report embeds, and the app reads."""
         return {
             "deal": self.deal_id,
-            "source": self.source,
+            "sources": self.sources,
             "streamStartedAt": self.stream_started_at,
             "startObserved": self.start_observed,
             "intervals": [
-                {"start": i.start, "end": i.end, "seconds": i.seconds, "streamOffsetSeconds": i.offset_seconds}
+                {"source": i.source, "start": i.start, "end": i.end, "seconds": i.seconds,
+                 "streamOffsetSeconds": i.offset_seconds}
                 for i in self.intervals
+            ],
+            "placements": [
+                {"source": p.source, "totalSeconds": round(p.total_seconds, 3), "intervals": p.intervals,
+                 "openSince": p.open_since}
+                for p in self.placements
             ],
             "totalSeconds": round(self.total_seconds, 3),
             "disagreements": self.disagreements,
@@ -204,21 +271,37 @@ def delivery(lines: Iterable[dict[str, Any]]) -> Delivery:
     return state.done()
 
 
+def union_seconds(intervals: Iterable[Interval]) -> float:
+    """Seconds covered by at least one interval: overlapping placements are counted once."""
+    spans = sorted((datetime.fromisoformat(i.start), datetime.fromisoformat(i.end)) for i in intervals)
+    total, reach = 0.0, None
+    for start, end in spans:
+        if reach is None or start > reach:
+            total += (end - start).total_seconds()
+            reach = end
+        elif end > reach:
+            total += (end - reach).total_seconds()
+            reach = end
+    return round(total, 3)
+
+
 @dataclass
 class _Fold:
     deal_id: str = ""
-    source: str = ""
+    sources: list[str] = field(default_factory=list)
     stream_started_at: str | None = None
     start_observed: bool = False
     disagreements: int = 0
-    open_since: str | None = None
+    open: dict[str, str] = field(default_factory=dict)
     intervals: list[Interval] = field(default_factory=list)
 
     def take(self, line: dict[str, Any]) -> None:
         kind = line.get("kind")
         self.deal_id = self.deal_id or str(line.get("deal", ""))
         if kind == "session":
-            self.source = str(line.get("source", ""))
+            # A log from before placements names one `source`; a newer one lists `sources`.
+            for name in line.get("sources") or [line.get("source", "")]:
+                self._know(str(name))
         elif kind == "stream" and line.get("live"):
             self.stream_started_at = str(line.get("at"))
             self.start_observed = bool(line.get("startObserved"))
@@ -227,24 +310,41 @@ class _Fold:
         elif kind == "onair":
             self._onair(line)
 
+    def _know(self, source: str) -> str:
+        if source and source not in self.sources:
+            self.sources.append(source)
+        return source
+
     def _onair(self, line: dict[str, Any]) -> None:
+        source = self._know(str(line.get("source") or (self.sources[0] if self.sources else "")))
         at = str(line.get("at_") or line.get("at"))
         if line.get("state") == "start":
-            self.open_since = at
-        elif line.get("state") == "end" and self.open_since is not None:
-            seconds = (datetime.fromisoformat(at) - datetime.fromisoformat(self.open_since)).total_seconds()
-            offset = offset_seconds(self.stream_started_at, self.open_since) if self.start_observed else None
-            self.intervals.append(Interval(self.open_since, at, round(seconds, 3), offset))
-            self.open_since = None
+            self.open[source] = at
+        elif line.get("state") == "end" and source in self.open:
+            began = self.open.pop(source)
+            seconds = (datetime.fromisoformat(at) - datetime.fromisoformat(began)).total_seconds()
+            offset = offset_seconds(self.stream_started_at, began) if self.start_observed else None
+            self.intervals.append(Interval(source, began, at, round(seconds, 3), offset))
 
     def done(self) -> Delivery:
+        ordered = sorted(self.intervals, key=lambda i: i.start)
+        placements = [
+            PlacementTotal(
+                source=name,
+                total_seconds=sum(i.seconds for i in ordered if i.source == name),
+                intervals=sum(1 for i in ordered if i.source == name),
+                open_since=self.open.get(name),
+            )
+            for name in self.sources
+        ]
         return Delivery(
             deal_id=self.deal_id,
-            source=self.source,
-            intervals=self.intervals,
-            total_seconds=sum(i.seconds for i in self.intervals),
+            sources=list(self.sources),
+            intervals=ordered,
+            placements=placements,
+            total_seconds=union_seconds(ordered),
             disagreements=self.disagreements,
-            open_since=self.open_since,
+            open_since=min(self.open.values()) if self.open else None,
             stream_started_at=self.stream_started_at,
             start_observed=self.start_observed,
         )

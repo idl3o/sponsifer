@@ -17,8 +17,10 @@ from sponsifable.obs import Obs
 class FakeObs:
     """A socket whose far end is OBS, with state a test can change."""
 
-    def __init__(self):
-        self.live, self.active = False, False
+    def __init__(self, inputs=None):
+        self.live = False
+        self.active = {}          # source name -> in the program feed
+        self.inputs = inputs      # the sources OBS has, or None for an OBS that will not say
         self.events = []
         self.sent = []
 
@@ -42,17 +44,20 @@ class FakeObs:
                 "requestType": body["requestType"],
                 "requestId": body["requestId"],
                 "requestStatus": {"result": True, "code": 100},
-                "responseData": self._answer(body["requestType"]),
+                "responseData": self._answer(body["requestType"], body.get("requestData", {})),
             },
         })
 
-    def _answer(self, request: str) -> dict:
+    def _answer(self, request: str, data: dict) -> dict:
         if request == "GetVersion":
             return {"obsVersion": "32.1.1", "obsWebSocketVersion": "5.5.0"}
         if request == "GetStreamStatus":
             return {"outputActive": self.live}
         if request == "GetSourceActive":
-            return {"videoActive": self.active, "videoShowing": self.active}
+            active = self.active.get(data.get("sourceName"), False)
+            return {"videoActive": active, "videoShowing": active}
+        if request == "GetInputList" and self.inputs is not None:
+            return {"inputs": [{"inputName": name} for name in self.inputs]}
         return {}
 
     # -- test controls ---------------------------------------------------
@@ -62,12 +67,12 @@ class FakeObs:
             self.events.append({"eventType": "StreamStateChanged",
                                 "eventData": {"outputActive": True, "outputState": "OBS_WEBSOCKET_OUTPUT_STARTED"}})
 
-    def shows(self, active: bool, announce: bool = True) -> None:
-        """The source enters or leaves the program feed. `announce` False is the missed signal."""
-        self.active = active
+    def shows(self, active: bool, announce: bool = True, name: str = "Sponsor overlay") -> None:
+        """A source enters or leaves the program feed. `announce` False is the missed signal."""
+        self.active[name] = active
         if announce:
             self.events.append({"eventType": "InputActiveStateChanged",
-                                "eventData": {"inputName": "Sponsor overlay", "videoActive": active}})
+                                "eventData": {"inputName": name, "videoActive": active}})
 
 
 @pytest.fixture
@@ -185,3 +190,75 @@ def test_a_corrupt_line_does_not_cost_the_rest_of_the_log(tmp_path: Path):
 
 def test_logs_live_beside_the_ledger_not_inside_the_workspace(tmp_path: Path):
     assert onair.log_path(tmp_path, "dl-104") == tmp_path / "onair" / "dl-104.jsonl"
+
+
+# Several placements on one deal
+
+
+def watching(tmp_path, fake, sources):
+    path = onair.log_path(tmp_path, "dl-104")
+    session = onair.Session("dl-104", sources, lambda line: onair.append(path, line))
+    return session, Obs(fake, session.event), path
+
+
+def test_each_placement_keeps_its_own_time_on_air(tmp_path: Path):
+    fake = FakeObs()
+    session, obs, path = watching(tmp_path, fake, ["Sponsor overlay", "Sponsor slate"])
+    drive(fake, obs, session, [
+        lambda: fake.goes_live(),
+        lambda: fake.shows(True),                           # the emblem goes up
+        lambda: fake.shows(True, name="Sponsor slate"),     # the slate opens the segment
+        lambda: fake.shows(False, name="Sponsor slate"),    # and comes down
+        lambda: fake.shows(False),
+    ])
+    delivery = summary(path)
+    assert delivery.sources == ["Sponsor overlay", "Sponsor slate"]
+    assert [p.intervals for p in delivery.placements] == [1, 1]
+    assert {i.source for i in delivery.intervals} == {"Sponsor overlay", "Sponsor slate"}
+    assert delivery.disagreements == 0
+
+
+def test_a_source_obs_does_not_have_is_left_out_and_named(tmp_path: Path):
+    fake = FakeObs(inputs=["Sponsor overlay", "Webcam"])
+    session, obs, path = watching(tmp_path, fake, list(onair.CONVENTIONAL_SOURCES))
+    drive(fake, obs, session, [lambda: None])
+    header = onair.read_log(path)[0]
+    assert header["sources"] == ["Sponsor overlay"]
+    assert "Sponsor slate" in header["missing"]
+
+
+def test_watching_nothing_obs_has_is_refused(tmp_path: Path):
+    fake = FakeObs(inputs=["Webcam"])
+    session, obs, _ = watching(tmp_path, fake, ["Sponsor overlay"])
+    with pytest.raises(RuntimeError, match="none of these sources exist"):
+        session.begin(obs)
+
+
+def test_the_total_counts_a_moment_once_however_many_placements_were_up():
+    at = "2026-09-18T20:%s:00.000+00:00"
+    lines = [
+        {"kind": "session", "at": at % "00", "deal": "dl-1", "sources": ["Sponsor overlay", "Sponsor slate"]},
+        {"kind": "stream", "at": at % "00", "live": True, "startObserved": True},
+        {"kind": "onair", "at": at % "00", "source": "Sponsor overlay", "state": "start"},
+        {"kind": "onair", "at": at % "10", "source": "Sponsor slate", "state": "start"},
+        {"kind": "onair", "at": at % "12", "source": "Sponsor slate", "state": "end"},
+        {"kind": "onair", "at": at % "30", "source": "Sponsor overlay", "state": "end"},
+    ]
+    delivery = onair.delivery(lines)
+    totals = {p.source: p.total_seconds for p in delivery.placements}
+    assert totals == {"Sponsor overlay": 1800, "Sponsor slate": 120}
+    assert delivery.total_seconds == 1800, "the slate's two minutes were inside the emblem's thirty"
+    assert [i.source for i in delivery.intervals] == ["Sponsor overlay", "Sponsor slate"]
+
+
+def test_a_log_written_before_placements_still_folds():
+    lines = [
+        {"kind": "session", "at": "2026-09-18T20:00:00.000+00:00", "deal": "dl-1", "source": "Sponsor overlay"},
+        {"kind": "stream", "at": "2026-09-18T20:00:00.000+00:00", "live": True, "startObserved": True},
+        {"kind": "onair", "at": "2026-09-18T20:05:00.000+00:00", "state": "start"},
+        {"kind": "onair", "at": "2026-09-18T20:06:30.000+00:00", "state": "end"},
+    ]
+    delivery = onair.delivery(lines)
+    assert delivery.sources == ["Sponsor overlay"]
+    assert delivery.intervals[0].source == "Sponsor overlay"
+    assert delivery.total_seconds == 90

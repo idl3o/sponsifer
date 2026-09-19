@@ -1,15 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { onAirSentence, reportSentence, spanOf, type OnAirSummary } from './onair';
+import { onAirSentence, placementSentence, reportSentence, spanOf, type OnAirSummary } from './onair';
 
 const base: OnAirSummary = {
   deal: 'dl-104',
-  source: 'Sponsor overlay',
+  sources: ['Sponsor overlay'],
   streamStartedAt: '2026-09-18T20:00:00.000+00:00',
   startObserved: true,
   intervals: [
-    { start: '2026-09-18T20:05:00.000+00:00', end: '2026-09-18T20:35:00.000+00:00', seconds: 1800, streamOffsetSeconds: 300 },
-    { start: '2026-09-18T21:00:00.000+00:00', end: '2026-09-18T21:32:00.000+00:00', seconds: 1920, streamOffsetSeconds: 3600 },
+    { source: 'Sponsor overlay', start: '2026-09-18T20:05:00.000+00:00', end: '2026-09-18T20:35:00.000+00:00', seconds: 1800, streamOffsetSeconds: 300 },
+    { source: 'Sponsor overlay', start: '2026-09-18T21:00:00.000+00:00', end: '2026-09-18T21:32:00.000+00:00', seconds: 1920, streamOffsetSeconds: 3600 },
   ],
+  placements: [{ source: 'Sponsor overlay', totalSeconds: 3720, intervals: 2, openSince: null }],
   totalSeconds: 3720,
   disagreements: 0,
   openSince: null,
@@ -42,6 +43,21 @@ describe('onAirSentence', () => {
   it('distinguishes never on air from still on air', () => {
     expect(onAirSentence({ ...base, intervals: [], totalSeconds: 0 })).toBe('Logged, but never on air.');
     expect(onAirSentence({ ...base, intervals: [], totalSeconds: 0, openSince: 'x' })).toMatch(/On air now/);
+  });
+});
+
+describe('placementSentence', () => {
+  it('says nothing when the deal had one placement', () => {
+    expect(placementSentence(base)).toBe('');
+  });
+
+  it('gives each placement its own time when there were several', () => {
+    const placements = [
+      { source: 'Sponsor overlay', totalSeconds: 3600, intervals: 1, openSince: null },
+      { source: 'Sponsor slate', totalSeconds: 45, intervals: 2, openSince: null },
+      { source: 'Sponsor card', totalSeconds: 0, intervals: 0, openSince: null },
+    ];
+    expect(placementSentence({ ...base, placements })).toBe('Sponsor overlay 1h 00m, Sponsor slate 45s.');
   });
 });
 

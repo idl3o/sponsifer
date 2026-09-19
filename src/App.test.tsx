@@ -180,8 +180,12 @@ describe('App', () => {
 
   it('shows what the on-air log says for a won deal when the server is serving', async () => {
     const summary = {
-      deal: '', source: 'Sponsor overlay', streamStartedAt: null, startObserved: true,
-      intervals: [{ start: 'a', end: 'b', seconds: 1800, streamOffsetSeconds: 300 }],
+      deal: '', sources: ['Sponsor overlay', 'Sponsor slate'], streamStartedAt: null, startObserved: true,
+      intervals: [{ source: 'Sponsor overlay', start: 'a', end: 'b', seconds: 1800, streamOffsetSeconds: 300 }],
+      placements: [
+        { source: 'Sponsor overlay', totalSeconds: 1800, intervals: 1, openSince: null },
+        { source: 'Sponsor slate', totalSeconds: 40, intervals: 1, openSince: null },
+      ],
       totalSeconds: 1800, disagreements: 1, openSince: null, reports: ['dl-x-20260918T220000Z'],
     };
     vi.stubGlobal('fetch', vi.fn(async (url: string) =>
@@ -198,6 +202,7 @@ describe('App', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Delivery, rights and sightings' }));
       expect(await screen.findByText(/On air 30m across 1 interval; 1 direct check contradicted an OBS event\./)).toBeTruthy();
       expect(screen.getByText(/Signed report: dl-x-20260918T220000Z/)).toBeTruthy();
+      expect(screen.getByText(/Sponsor overlay 30m, Sponsor slate 40s\./)).toBeTruthy();
     } finally {
       syncStatus.setState({ mode: 'browser-only' });
     }

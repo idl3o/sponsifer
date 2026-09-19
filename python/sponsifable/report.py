@@ -36,7 +36,8 @@ from typing import Any
 from . import onair, receipt
 from .brand import PRODUCT
 
-REPORT_VERSION = 1
+#: 2: one report covers every placement, each with its own total.
+REPORT_VERSION = 2
 #: The SSHSIG namespace for delivery reports. Receipts have their own.
 NAMESPACE = "sponsifable-delivery"
 #: Reports live beside the ledger and the on-air logs.
@@ -73,10 +74,11 @@ def build_report(
         "sponsor": deal.get("brand", ""),
         "platform": deal.get("platform", ""),
         "format": deal.get("format", ""),
-        "source": summary["source"],
+        "sources": summary["sources"],
         "streamStartedAt": summary["streamStartedAt"],
         "startObserved": summary["startObserved"],
         "intervals": summary["intervals"],
+        "placements": summary["placements"],
         "totalSeconds": summary["totalSeconds"],
         "disagreements": summary["disagreements"],
         "openSince": summary["openSince"],
@@ -114,10 +116,22 @@ def _clock(seconds: float | None) -> str:
 def _interval_lines(report: dict[str, Any]) -> list[str]:
     lines = []
     for i, interval in enumerate(report["intervals"], start=1):
-        lines.append(f"  {i}. {interval['start']} to {interval['end']}  ({_span(interval['seconds'])}), "
-                     f"{_clock(interval['streamOffsetSeconds'])}")
+        lines.append(f"  {i}. \"{interval['source']}\": {interval['start']} to {interval['end']}  "
+                     f"({_span(interval['seconds'])}), {_clock(interval['streamOffsetSeconds'])}")
     if not lines:
         lines.append("  none completed")
+    return lines
+
+
+def _placement_lines(report: dict[str, Any]) -> list[str]:
+    """Each placement's own total, when the deal had more than one."""
+    if len(report["placements"]) < 2:
+        return []
+    lines = ["By placement:"]
+    for p in report["placements"]:
+        count = p["intervals"]
+        lines.append(f"  \"{p['source']}\": {_span(p['totalSeconds'])} across {count} interval{'s' if count != 1 else ''}")
+    lines.append("The total above counts a moment once, however many placements were up in it.")
     return lines
 
 
@@ -152,12 +166,13 @@ def sponsor_notice(report: dict[str, Any], *, fingerprint: str, allowed_signers:
         [
             f"Delivery report: {report['creator']} to {report['sponsor']}",
             "",
-            f"Placement: \"{report['source']}\", a {report['format']} on {report['platform']}, deal {report['dealId']}.",
+            f"Placements watched: {', '.join(report['sources'])}. A {report['format']} on {report['platform']}, deal {report['dealId']}.",
             f"On air for {_span(report['totalSeconds'])} in total, across {len(report['intervals'])} interval"
             f"{'s' if len(report['intervals']) != 1 else ''}:",
             *_interval_lines(report),
+            *_placement_lines(report),
             "",
-            "On air means the stream was live and the placement was in the broadcast feed, as reported by",
+            "On air means the stream was live and the named source was in the broadcast feed, as reported by",
             "OBS Studio and checked directly against it every few seconds. Times are UTC wall clock.",
             *_integrity_lines(report),
             "",

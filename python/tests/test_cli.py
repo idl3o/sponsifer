@@ -62,3 +62,9 @@ def test_sealing_says_where_the_workspace_should_be_rather_than_raising(tmp_path
 )
 def test_every_command_that_writes_takes_a_workspace_flag(argv):
     assert parse(*argv, "--workspace", "elsewhere.json").workspace == Path("elsewhere.json")
+
+
+def test_log_watches_every_placement_unless_told_which():
+    assert parse("log", "dl-104").source is None, "None means every placement's usual name"
+    named = parse("log", "dl-104", "--source", "Sponsor overlay", "--source", "My slate")
+    assert named.source == ["Sponsor overlay", "My slate"]

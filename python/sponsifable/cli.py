@@ -80,7 +80,9 @@ def _parser() -> argparse.ArgumentParser:
 
     log = sub.add_parser("log", help="record when a deal's placement was on air, from OBS")
     log.add_argument("deal", help="deal id, shown in the app's Deals tab, e.g. dl-104")
-    log.add_argument("--source", default="Sponsor overlay", help="the browser source's name in OBS")
+    log.add_argument("--source", action="append", metavar="NAME",
+                     help="a browser source to watch, by its name in OBS; repeat for several "
+                          "(default: every placement's usual name, watching those OBS has)")
     log.add_argument("--url", default="ws://127.0.0.1:4455", help="where OBS's WebSocket server is listening")
     log.add_argument("--poll", type=float, default=2.0, help="seconds of quiet before asking OBS directly")
     log.add_argument("--workspace", type=Path, help=_WORKSPACE_HELP)
@@ -221,8 +223,8 @@ def _log(args: argparse.Namespace, home: Path) -> int:
         onair.append(path, line)
         print(json.dumps(line, ensure_ascii=False), flush=True)
 
-    session = onair.Session(args.deal, args.source, write)
-    print(f"Watching \"{args.source}\" for {args.deal}. Ctrl+C to stop. Appending to {path}")
+    session = onair.Session(args.deal, args.source or list(onair.CONVENTIONAL_SOURCES), write)
+    print(f"Watching OBS for {args.deal}. Ctrl+C to stop. Appending to {path}")
     try:
         with connect(args.url, open_timeout=5) as socket:
             obs = Obs(socket, session.event)
@@ -236,6 +238,8 @@ def _log(args: argparse.Namespace, home: Path) -> int:
     summary = onair.delivery(onair.read_log(path))
     minutes = summary.total_seconds / 60
     print(f"\nOn air {minutes:.1f} minutes across {len(summary.intervals)} intervals.")
+    for placement in summary.placements:
+        print(f"  {placement.source}: {placement.total_seconds / 60:.1f} minutes")
     if summary.disagreements:
         print(f"{summary.disagreements} polls disagreed with OBS's events. The report will say so.")
     return 0

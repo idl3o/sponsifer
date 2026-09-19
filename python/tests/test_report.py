@@ -42,6 +42,28 @@ def test_the_report_is_the_log_folded_and_nothing_else():
     assert body["sponsor"] == "Hetzner"
 
 
+def test_a_deal_with_one_placement_gets_no_breakdown():
+    assert "By placement:" not in notice_for(build())
+    assert build()["version"] == 2
+
+
+def test_several_placements_are_each_given_their_own_total():
+    at = "2026-09-18T20:%s:00.000+00:00"
+    lines = [
+        {"kind": "session", "at": at % "00", "deal": "dl-104", "sources": ["Sponsor overlay", "Sponsor slate"]},
+        {"kind": "stream", "at": at % "00", "live": True, "startObserved": True},
+        {"kind": "onair", "at": at % "00", "source": "Sponsor overlay", "state": "start"},
+        {"kind": "onair", "at": at % "10", "source": "Sponsor slate", "state": "start"},
+        {"kind": "onair", "at": at % "12", "source": "Sponsor slate", "state": "end"},
+        {"kind": "onair", "at": at % "30", "source": "Sponsor overlay", "state": "end"},
+    ]
+    text = notice_for(build(lines))
+    assert "On air for 30m 00s in total" in text
+    assert '"Sponsor overlay": 30m 00s across 1 interval' in text
+    assert '"Sponsor slate": 2m 00s across 1 interval' in text
+    assert "counts a moment once" in text
+
+
 def test_the_report_carries_no_price():
     body = build()
     flat = json.dumps(body).lower()
