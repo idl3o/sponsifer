@@ -58,6 +58,12 @@
 - **The overlay fails silently.** A failed read keeps the last good frame; an overlay that never loaded draws nothing. It asks OBS for no permissions and times nothing.
 - **The overlay URL uses `/overlay.html`,** not the server's `/overlay` alias, so it also works under Vite.
 
+- **The on-air log is append-only, and lives beside the ledger,** at `~/.sponsifable/onair/<deal>.jsonl`, never inside the workspace: it grows per stream and it is evidence. `onair.delivery()` is the only reader of its shape, so the app and a delivery report cannot count differently.
+- **On air means live *and* in the program feed.** Showing in preview is not being broadcast. Events are prompts; the `GetSourceActive` poll is the arbiter, because activation signals have been unreliable in studio mode. Every disagreement is recorded and the summary carries the count. Never smooth them away.
+- **An interval's offset into the VOD is null unless the logger saw the stream start.** The log's job is to be an index into the recording, and an offset from a start nobody saw is a guess.
+- **`python/sponsifable/obs.py` is the one copy of the protocol layer.** `scripts/obs_probe.py` imports it, falling back to adding `python/` to `sys.path` when the package is not installed.
+- `src/store/sync.ts` and `src/store/workspaceClient.ts` are the I/O edge for the workspace, outside `src/domain`. `sync.ts` takes its fetch, storage and focus hook as arguments, so it is tested in node.
+
 ### The sponsor emblem (built 2026-09-18)
 
 - **Two layers, two owners.** `EmblemStyle` is the creator's house style, one per workspace, applied to every deal's overlay; `Deal.sponsorArt` is the sponsor's image, wording and brand colour. Do not move the style onto the deal or the art onto the workspace: a creator dresses every sponsor the same way, and a sponsor's logo belongs to one deal.
@@ -66,11 +72,6 @@
 - **The drag snaps to a corner with a clamped inset** (`snapToCorner`), so a position can never be off the frame. Do not add free placement without a rule that keeps the badge on screen.
 - **Motion is CSS only.** An entrance once; a label pulse on the style's period, which is the FTC's periodic disclosure for live streams. No timers in the overlay page.
 - **The editor's own-frame screenshot is a `blob:` URL in component state, never stored.**
-- **The on-air log is append-only, and lives beside the ledger,** at `~/.sponsifable/onair/<deal>.jsonl`, never inside the workspace: it grows per stream and it is evidence. `onair.delivery()` is the only reader of its shape, so the app and a delivery report cannot count differently.
-- **On air means live *and* in the program feed.** Showing in preview is not being broadcast. Events are prompts; the `GetSourceActive` poll is the arbiter, because activation signals have been unreliable in studio mode. Every disagreement is recorded and the summary carries the count. Never smooth them away.
-- **An interval's offset into the VOD is null unless the logger saw the stream start.** The log's job is to be an index into the recording, and an offset from a start nobody saw is a guess.
-- **`python/sponsifable/obs.py` is the one copy of the protocol layer.** `scripts/obs_probe.py` imports it, falling back to adding `python/` to `sys.path` when the package is not installed.
-- `src/store/sync.ts` and `src/store/workspaceClient.ts` are the I/O edge for the workspace, outside `src/domain`. `sync.ts` takes its fetch, storage and focus hook as arguments, so it is tested in node.
 
 ## Gotchas already resolved — do not regress
 
@@ -97,7 +98,7 @@
 - **`pip install` needs `PYTHONUTF8=1` on this machine.** One dependency's `setup.py` reads a file as cp1252 and dies otherwise.
 - **`npm run bundle` before building the wheel.** The web app is gitignored inside the package and is included only via hatch `artifacts`. A git install without it serves an error telling you so.
 - **The ledger holds four files per serial.** Only `<10 hex>.json` is a seal record; `ledger.entries()` matches that pattern, because `<serial>.receipt.json` sits beside it.
-- `python -m pytest` needs the repo venv (`.venv`, created with `--system-site-packages` to reuse the installed torch). Tests fake the watermark and the timestamp authority; `python/tests/fixtures/digicert-probe.tsr` is a real token over SHA-256("sponsifable api probe") for offline token tests.
+- `python -m pytest` needs the repo venv (`.venv`, created with `--system-site-packages` to reuse the installed torch). Tests fake the watermark and the timestamp authority; `python/tests/fixtures/digicert-probe.tsr` is a real token over SHA-256("sponsorable api probe") for offline token tests; the old spelling is deliberate, because those are the bytes DigiCert signed.
 
 ## Archive
 
