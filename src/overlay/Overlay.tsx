@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { EmblemBadge } from '../components/emblem/EmblemBadge';
+import type { PlacementKind } from '../domain/emblem';
 import { overlayFor, type OverlayView } from '../domain/overlay';
 import { fetchRemote, type Fetch } from '../store/workspaceClient';
 
@@ -27,7 +28,17 @@ function useFrameHeight(): number {
   return height;
 }
 
-export function Overlay({ dealId, fetcher, pollMs = 5000 }: { dealId: string; fetcher: Fetch; pollMs?: number }) {
+export function Overlay({
+  dealId,
+  fetcher,
+  kind = 'emblem',
+  pollMs = 5000,
+}: {
+  dealId: string;
+  fetcher: Fetch;
+  kind?: PlacementKind;
+  pollMs?: number;
+}) {
   const [view, setView] = useState<OverlayView | null>(null);
   const frameHeight = useFrameHeight();
 
@@ -38,7 +49,7 @@ export function Overlay({ dealId, fetcher, pollMs = 5000 }: { dealId: string; fe
       const remote = await fetchRemote(fetcher, etag);
       if (cancelled || remote.kind !== 'ok') return;
       etag = remote.etag;
-      setView(overlayFor(remote.workspace, dealId));
+      setView(overlayFor(remote.workspace, dealId, kind));
     };
     void read();
     const timer = setInterval(() => void read(), pollMs);
@@ -46,7 +57,7 @@ export function Overlay({ dealId, fetcher, pollMs = 5000 }: { dealId: string; fe
       cancelled = true;
       clearInterval(timer);
     };
-  }, [dealId, fetcher, pollMs]);
+  }, [dealId, fetcher, kind, pollMs]);
 
   if (!view) return null;
   return <EmblemBadge view={view} frameHeight={frameHeight} />;

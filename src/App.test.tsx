@@ -220,6 +220,20 @@ describe('App', () => {
     expect(screen.getByLabelText('Stream preview').textContent).toContain('Powered by');
   });
 
+  it('offers each further placement with the OBS source name the log looks for', () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Deals' }));
+    fireEvent.change(screen.getByLabelText(/Agreed, GBP/i), { target: { value: '2400' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Record' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Delivery, rights and sightings' }));
+    for (const name of ['Sponsor lower third', 'Sponsor slate', 'Sponsor card']) {
+      expect(screen.getByText(new RegExp(`Name the source "${name}"`))).toBeTruthy();
+    }
+    fireEvent.click(screen.getByRole('button', { name: 'Edit emblem' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Segment slate' }));
+    expect(screen.getByLabelText('Stream preview').querySelector('.ad-kind-slate')?.textContent).toMatch(/^Ad/);
+  });
+
   it('judges an offer against the card and says what to reply', () => {
     render(<App />);
     fireEvent.click(screen.getByRole('tab', { name: 'An offer' }));

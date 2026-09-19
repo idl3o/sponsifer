@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { FORMAT_LABEL, PLATFORM_LABEL } from '../domain/benchmarks';
 import { priceOverrun, rateSubmissionUrl } from '../domain/deals';
+import { PLACEMENTS } from '../domain/emblem';
 import { onAirSentence, reportSentence } from '../domain/onair';
 import { overlayUrl } from '../domain/overlay';
 import type { Deal, Sighting } from '../domain/types';
@@ -192,6 +193,40 @@ function OnAirLine({ deal, onAir }: { deal: Deal; onAir: OnAir | null }) {
   );
 }
 
+/**
+ * The placements beyond the corner emblem, each its own OBS browser source.
+ * The source name matters: `sponsifable log` finds each placement by it, which
+ * is how the delivery report can say how long each one was on air.
+ */
+function OtherPlacements({ deal, served }: { deal: Deal; served: boolean }) {
+  const [copied, setCopied] = useState('');
+  return (
+    <details className="placements">
+      <summary>More placements: a lower third, a segment slate, a break card</summary>
+      <p className="note">
+        Add each as its own browser source, with the name shown, so the on-air log can tell them apart. The corner
+        emblem's source is named "{PLACEMENTS[0]?.sourceName}".
+      </p>
+      {PLACEMENTS.filter((p) => p.value !== 'emblem').map((p) => (
+        <div className="adj" key={p.value}>
+          <div>{p.label}</div>
+          <div className="f">
+            <Button
+              disabled={!served}
+              onClick={() => void copyText(overlayUrl(window.location.origin, deal.id, p.value)).then((ok) => setCopied(ok ? p.value : ''))}
+            >
+              {copied === p.value ? 'Copied' : `Copy ${p.label.toLowerCase()} URL`}
+            </Button>
+          </div>
+          <div className="why">
+            {p.hint} Name the source "{p.sourceName}".
+          </div>
+        </div>
+      ))}
+    </details>
+  );
+}
+
 /** The OBS browser source that puts the emblem on stream, and what the log says about it. */
 function OnStream({ deal }: { deal: Deal }) {
   const served = useSyncStatus((s) => s.mode === 'file');
@@ -216,6 +251,7 @@ function OnStream({ deal }: { deal: Deal }) {
         </Button>
         <Button onClick={() => setEditing(!editing)}>{editing ? 'Close emblem' : 'Edit emblem'}</Button>
       </div>
+      <OtherPlacements deal={deal} served={served} />
       {editing && <EmblemEditor deal={deal} />}
       <OnAirLine deal={deal} onAir={onAir} />
     </>

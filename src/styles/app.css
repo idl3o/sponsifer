@@ -808,3 +808,21 @@ input.swatch-custom {
   border: 2px solid var(--bg);
   cursor: nwse-resize;
 }
+
+/* The placements beyond the corner emblem, folded away until wanted. */
+.placements {
+  margin: 0 0 12px;
+}
+
+.placements > summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 13px;
+  min-height: 28px;
+  display: flex;
+  align-items: center;
+}
+
+.placements > summary:hover {
+  color: var(--ink);
+}

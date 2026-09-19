@@ -5,6 +5,7 @@ import {
   DEFAULT_ART,
   EMBLEM_INSET,
   EMBLEM_SIZE,
+  PLACEMENTS,
   RESHOW_OPTIONS,
   SHAPES,
   WORDINGS,
@@ -13,6 +14,7 @@ import {
   sizeFromHeight,
   snapToCorner,
   type EmblemView,
+  type PlacementKind,
 } from '../../domain/emblem';
 import type { Deal, EmblemStyle, SponsorArt } from '../../domain/types';
 import { workspaceOf } from '../../domain/workspace';
@@ -84,9 +86,13 @@ function Frame({ view, shot, place }: { view: EmblemView; shot: string; place: P
   return (
     <div ref={ref} className={`emblem-frame${shot ? '' : ' mock'}`} aria-label="Stream preview">
       {shot && <img className="frame-shot" src={shot} alt="" draggable={false} />}
-      <EmblemBadge view={view} frameHeight={frameHeight} onPointerDown={drag}>
-        <span className="emblem-handle" aria-label="Resize" onPointerDown={resize} />
-      </EmblemBadge>
+      {view.kind === 'emblem' ? (
+        <EmblemBadge view={view} frameHeight={frameHeight} onPointerDown={drag}>
+          <span className="emblem-handle" aria-label="Resize" onPointerDown={resize} />
+        </EmblemBadge>
+      ) : (
+        <EmblemBadge view={view} frameHeight={frameHeight} />
+      )}
     </div>
   );
 }
@@ -195,14 +201,16 @@ export function EmblemEditor({ deal }: { deal: Deal }) {
   const emblem = useStore((s) => s.emblem);
   const setEmblem = useStore((s) => s.setEmblem);
   const [shot, setShot] = useState('');
+  const [kind, setKind] = useState<PlacementKind>('emblem');
   const shotInput = useRef<HTMLInputElement>(null);
   useEffect(() => () => void (shot.startsWith('blob:') && URL.revokeObjectURL(shot)), [shot]);
 
-  const view = emblemView(workspaceOf({ profile, terms, prospects, deals, board, emblem }), deal.id);
+  const view = emblemView(workspaceOf({ profile, terms, prospects, deals, board, emblem }), deal.id, kind);
   if (!view) return null;
   return (
     <div className="emblem-editor">
       <div>
+        <Segmented label="Placement" value={kind} options={PLACEMENTS.map((p) => ({ value: p.value, label: p.label }))} onChange={setKind} />
         <Frame view={view} shot={shot} place={setEmblem} />
         <div className="row" style={{ gap: 6, marginTop: 8 }}>
           <Button onClick={() => shotInput.current?.click()}>Try on your own frame</Button>
@@ -210,7 +218,12 @@ export function EmblemEditor({ deal }: { deal: Deal }) {
           <input ref={shotInput} type="file" accept="image/*" style={{ display: 'none' }}
             onChange={(e) => { const f = e.target.files?.[0]; if (f) setShot(URL.createObjectURL(f)); e.target.value = ''; }} />
         </div>
-        <p className="note">Drag the badge to a corner; drag its handle to size it. The frame is a stand-in; the badge is exactly what OBS draws.</p>
+        <p className="note">
+          {kind === 'emblem'
+            ? 'Drag the badge to a corner; drag its handle to size it.'
+            : `${PLACEMENTS.find((p) => p.value === kind)?.hint ?? ''} It takes its colours, shape and size from your house style.`}{' '}
+          The frame is a stand-in; what is drawn in it is exactly what OBS draws.
+        </p>
       </div>
       <div>
         <h3>Your house style</h3>

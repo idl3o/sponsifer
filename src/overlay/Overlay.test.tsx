@@ -74,6 +74,13 @@ describe('Overlay', () => {
     expect((container.querySelector('.ad-badge') as HTMLElement).style.getPropertyValue('--ad-accent')).toBe('#ff0000');
   });
 
+  it('draws the kind its address names, with the label on it', async () => {
+    const { container } = render(<Overlay dealId="dl-104" kind="slate" fetcher={vi.fn(async () => answer())} />);
+    await tick(0);
+    expect(container.querySelector('.ad-badge.ad-kind-slate')).toBeTruthy();
+    expect(container.textContent).toBe('AdSponsored by Hetzner');
+  });
+
   it('draws nothing for a deal that is not a won deal in the file', async () => {
     const { container } = render(<Overlay dealId="dl-999" fetcher={vi.fn(async () => answer())} />);
     await tick(0);

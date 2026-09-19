@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { SAMPLE_PROFILE, SAMPLE_PROSPECTS } from '../store/sample';
 import { DEFAULT_BOARD } from './board';
-import { DEFAULT_EMBLEM, EMBLEM_INSET, EMBLEM_SIZE, emblemGeometry, emblemView, lineFor, sizeFromHeight, snapToCorner } from './emblem';
+import {
+  DEFAULT_EMBLEM, EMBLEM_INSET, EMBLEM_SIZE, PLACEMENTS, emblemGeometry, emblemView, lineFor, placementKind, sizeFromHeight, snapToCorner,
+} from './emblem';
 import { DEFAULT_TERMS } from './pricing';
 import type { Deal } from './types';
 import { workspaceOf, type Workspace } from './workspace';
@@ -21,7 +23,7 @@ describe('emblemView', () => {
   it('always carries the Ad label, and nothing that is or leads to a price', () => {
     const view = emblemView(withDeals(DEAL), 'dl-104')!;
     expect(view.disclosure).toBe('Ad');
-    expect(Object.keys(view).sort()).toEqual(['brand', 'disclosure', 'image', 'imageAspect', 'line', 'style']);
+    expect(Object.keys(view).sort()).toEqual(['brand', 'disclosure', 'image', 'imageAspect', 'kind', 'line', 'style']);
     expect(JSON.stringify(view)).not.toMatch(/400|450|£|agreed|quoted/);
   });
 
@@ -45,6 +47,52 @@ describe('emblemView', () => {
     const view = emblemView({ ...ws, emblem: { ...ws.emblem, bareLogo: true } }, 'dl-104')!;
     expect(view.line).toBe('');
     expect(view.disclosure).toBe('Ad');
+  });
+});
+
+describe('placement kinds', () => {
+  it('carries the Ad label and no price on every kind', () => {
+    for (const { value } of PLACEMENTS) {
+      const view = emblemView(withDeals(DEAL), 'dl-104', value);
+      expect(view?.kind).toBe(value);
+      expect(view?.disclosure).toBe('Ad');
+      expect(JSON.stringify(view)).not.toMatch(/400|450|£|agreed|quoted/);
+    }
+  });
+
+  it('lets only the corner emblem go without words', () => {
+    const ws = withDeals(DEAL);
+    const bare = { ...ws, emblem: { ...ws.emblem, bareLogo: true } };
+    expect(emblemView(bare, 'dl-104', 'emblem')?.line).toBe('');
+    expect(emblemView(bare, 'dl-104', 'slate')?.line).toBe('Sponsored by Hetzner');
+    expect(emblemView(bare, 'dl-104', 'lower-third')?.line).toBe('Sponsored by Hetzner');
+  });
+
+  it('gives each kind a distinct OBS source name, which is how the log tells them apart', () => {
+    const names = PLACEMENTS.map((p) => p.sourceName);
+    expect(new Set(names).size).toBe(names.length);
+    expect(names[0]).toBe('Sponsor overlay');
+  });
+
+  it('reads a kind from an address, and falls back to the emblem', () => {
+    expect(placementKind('slate')).toBe('slate');
+    expect(placementKind(null)).toBe('emblem');
+    expect(placementKind('billboard')).toBe('emblem');
+  });
+
+  it('puts a lower third at the bottom, on the side the house corner is on', () => {
+    expect(emblemGeometry({ ...DEFAULT_EMBLEM, corner: 'top-right' }, 540, 'lower-third').corner).toBe('bottom-right');
+    expect(emblemGeometry({ ...DEFAULT_EMBLEM, corner: 'top-left' }, 540, 'lower-third').corner).toBe('bottom-left');
+    expect(emblemGeometry({ ...DEFAULT_EMBLEM, corner: 'top-right' }, 540, 'emblem').corner).toBe('top-right');
+  });
+
+  it('scales every kind from the frame height alone', () => {
+    for (const { value } of PLACEMENTS) {
+      const small = emblemGeometry(DEFAULT_EMBLEM, 540, value);
+      const big = emblemGeometry(DEFAULT_EMBLEM, 1080, value);
+      expect(big.heightPx).toBeCloseTo(small.heightPx * 2);
+      expect(big.fontPx).toBeCloseTo(small.fontPx * 2);
+    }
   });
 });
 

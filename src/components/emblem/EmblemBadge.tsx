@@ -25,10 +25,11 @@ export function EmblemBadge({
   onPointerDown?: PointerEventHandler<HTMLDivElement>;
   children?: ReactNode;
 }) {
-  const g = emblemGeometry(view.style, frameHeight);
+  const g = emblemGeometry(view.style, frameHeight, view.kind);
   const { style } = view;
   const classes = [
     'ad-badge',
+    `ad-kind-${view.kind}`,
     `ad-${g.corner}`,
     style.entrance ? 'ad-enter' : '',
     style.reshowEveryMinutes > 0 ? 'ad-reshow' : '',

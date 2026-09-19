@@ -71,3 +71,73 @@
 @media (prefers-reduced-motion: reduce) {
   .ad-enter, .ad-reshow .ad-label { animation: none; }
 }
+
+/*
+ * The other kinds of placement. Each reuses the badge's parts and variables;
+ * only the box changes. `--ad-h` is the kind's unit, already scaled for it.
+ */
+
+/* A band along the bottom, on the house corner's side. */
+.ad-kind-lower-third {
+  min-width: 36%;
+  padding-right: calc(var(--ad-h) * 0.5);
+}
+
+.ad-kind-lower-third .ad-line {
+  font-size: calc(var(--ad-font) * 1.15);
+}
+
+/* A full frame for a few seconds, to open a sponsored segment. */
+.ad-kind-slate {
+  inset: 0;
+  height: auto;
+  flex-direction: column;
+  justify-content: center;
+  gap: calc(var(--ad-h) * 0.45);
+  padding: calc(var(--ad-h) * 0.8);
+  border-radius: 0;
+  box-shadow: none;
+  white-space: normal;
+  text-align: center;
+}
+
+.ad-kind-slate .ad-art {
+  height: calc(var(--ad-h) * 2.6);
+  max-width: 60%;
+}
+
+.ad-kind-slate .ad-line {
+  font-size: calc(var(--ad-font) * 1.6);
+}
+
+/* A card in the middle of a starting-soon or be-right-back scene. */
+.ad-kind-card {
+  inset: 0;
+  margin: auto;
+  width: fit-content;
+  height: fit-content;
+  max-width: 70%;
+  flex-direction: column;
+  gap: calc(var(--ad-h) * 0.35);
+  padding: calc(var(--ad-h) * 0.6) calc(var(--ad-h) * 0.9);
+  text-align: center;
+}
+
+.ad-kind-card .ad-art {
+  height: calc(var(--ad-h) * 1.8);
+}
+
+.ad-kind-card .ad-line {
+  font-size: calc(var(--ad-font) * 1.25);
+}
+
+/* A slate and a card arrive by fading: they have no corner to slide in from. */
+.ad-kind-slate.ad-enter,
+.ad-kind-card.ad-enter {
+  animation-name: ad-fade;
+}
+
+@keyframes ad-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}

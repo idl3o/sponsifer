@@ -1,14 +1,16 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
+import { placementKind } from '../domain/emblem';
 import { Overlay } from './Overlay';
 import './overlay.css';
 
-const dealId = new URLSearchParams(window.location.search).get('deal') ?? '';
+const params = new URLSearchParams(window.location.search);
+const dealId = params.get('deal') ?? '';
 const root = document.getElementById('overlay');
 if (root && dealId) {
   createRoot(root).render(
     <StrictMode>
-      <Overlay dealId={dealId} fetcher={window.fetch.bind(window)} />
+      <Overlay dealId={dealId} kind={placementKind(params.get('kind'))} fetcher={window.fetch.bind(window)} />
     </StrictMode>,
   );
 }
