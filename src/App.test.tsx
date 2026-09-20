@@ -10,7 +10,7 @@ import { adoptRenamedSave, useStore } from './store/useStore';
  * derived values reach the screen.
  */
 
-const TABS = ['Profile', 'Rate card', 'An offer', 'Media kit', 'Prospects', 'Outreach', 'Deals', 'Shop board'];
+const TABS = ['Profile', 'Rate card', 'An offer', 'Media kit', 'Prospects', 'Outreach', 'Deals', 'Ads', 'Shop board'];
 
 beforeEach(() => {
   useStore.getState().resetToSample();
@@ -301,6 +301,33 @@ describe('App', () => {
     } finally {
       syncStatus.setState({ mode: 'browser-only' });
     }
+  });
+
+  it('makes an ad directly for a sponsor who never was a prospect, and finds it again by name', () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Ads' }));
+    expect(screen.getByText(/No ads yet/)).toBeTruthy();
+
+    for (const sponsor of ['Tailscale', 'Hetzner']) {
+      fireEvent.change(screen.getByLabelText('Sponsor'), { target: { value: sponsor } });
+      fireEvent.click(screen.getByRole('button', { name: 'Make the ad' }));
+    }
+    const deals = useStore.getState().deals;
+    expect(deals.map((d) => d.brand).sort()).toEqual(['Hetzner', 'Tailscale']);
+    expect(deals.every((d) => d.outcome === 'won' && d.prospectId === '' && d.quoted > 0)).toBe(true);
+    expect(screen.getByText('2 ads.')).toBeTruthy();
+    // The ad just made is opened, ready to be put on stream.
+    expect(screen.getByRole('button', { name: 'Copy OBS URL' })).toBeTruthy();
+
+    fireEvent.change(screen.getByLabelText('Find an ad'), { target: { value: 'tail' } });
+    expect(screen.getByText('1 of 2 ads.')).toBeTruthy();
+    expect(screen.getByText('Tailscale')).toBeTruthy();
+    expect(screen.queryByText('Hetzner')).toBeNull();
+
+    // No fee was recorded, so the ground truth says nothing rather than reading two closes at 0%.
+    fireEvent.click(screen.getByRole('tab', { name: 'Deals' }));
+    expect(screen.getByText(/No won deals recorded yet/)).toBeTruthy();
+    expect(screen.getAllByText(/fee not recorded/)).toHaveLength(2);
   });
 
   it('edits the emblem by hand on a won deal, and the house style follows', () => {

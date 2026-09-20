@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { PRODUCT, TAGLINE } from './brand';
+import { AdsView } from './components/AdsView';
 import { BoardView } from './components/board/BoardView';
 import { DealsView } from './components/DealsView';
 import { MediaKitView } from './components/MediaKitView';
@@ -23,6 +24,7 @@ const TABS: Array<{ id: Tab; label: string }> = [
   { id: 'prospects', label: 'Prospects' },
   { id: 'outreach', label: 'Outreach' },
   { id: 'deals', label: 'Deals' },
+  { id: 'ads', label: 'Ads' },
   { id: 'board', label: 'Shop board' },
 ];
 
@@ -171,6 +173,7 @@ export function App() {
         {tab === 'prospects' && <ProspectsView today={today} />}
         {tab === 'outreach' && <OutreachView today={today} />}
         {tab === 'deals' && <DealsView today={today} />}
+        {tab === 'ads' && <AdsView today={today} />}
         {tab === 'board' && <BoardView />}
       </main>
     </div>

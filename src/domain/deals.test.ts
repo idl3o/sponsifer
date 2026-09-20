@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   calibrate,
   closeDeal,
+  directDeal,
+  madeDirectly,
   priceOverrun,
   quarterOf,
   rateSubmissionUrl,
@@ -210,5 +212,48 @@ describe('priceOverrun', () => {
     const generous = won(line.target, { paidUsageDays: 60 });
     expect(priceOverrun(generous, { ...sighting, seenOn: '2026-11-25' }).owed).toBe(0);
     expect(won(line.target).paidUsageDays).toBe(30);
+  });
+});
+
+describe('directDeal', () => {
+  const direct = (agreed: number, brand = 'Hetzner') =>
+    directDeal(profile, line, whitelisted, { id: 'dl-9', brand, agreed, closedOn: '2026-09-20' });
+
+  it('is a won deal like any other, frozen from the profile and the quote, with no prospect behind it', () => {
+    const deal = direct(900);
+    expect(deal?.outcome).toBe('won');
+    expect(deal?.brand).toBe('Hetzner');
+    expect(deal?.prospectId).toBe('');
+    expect(deal?.quoted).toBe(line.target);
+    expect(deal?.followers).toBe(channel.followers);
+    expect(deal && madeDirectly(deal)).toBe(true);
+    expect(madeDirectly(won(900))).toBe(false);
+  });
+
+  it('refuses a blank sponsor, and trims the name', () => {
+    expect(direct(900, '   ')).toBeNull();
+    expect(direct(900, '  Hetzner ')?.brand).toBe('Hetzner');
+  });
+});
+
+describe('calibrate, with deals that carry no evidence', () => {
+  it('leaves a won deal with no fee recorded out of the close ratio, rather than reading it as 0%', () => {
+    const c = calibrate([won(line.target), won(0), won(line.target)]);
+    expect(c.closeRatio).toBe(1);
+    expect(c.sentence).toContain('Across 2 won deals');
+    expect(c.won).toBe(3);
+  });
+
+  it('says nothing about the card when no won deal has a fee', () => {
+    expect(calibrate([won(0)]).closeRatio).toBeNull();
+  });
+
+  it('keeps a deal made directly out of the fit verdicts, because it never had a score', () => {
+    const made = directDeal(profile, line, whitelisted, { id: 'dl-9', brand: 'Hetzner', agreed: line.target, closedOn: '2026-09-20' });
+    const c = calibrate(made ? [made, won(line.target)] : []);
+    const counted = Object.values(c.byVerdict).reduce((sum, bucket) => sum + bucket.total, 0);
+    expect(counted).toBe(1);
+    expect(c.byVerdict.weak.total).toBe(0);
+    expect(c.closeRatio).toBe(1);
   });
 });

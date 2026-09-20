@@ -57,6 +57,44 @@ export function closeDeal(
   terms: DealTerms,
   input: CloseInput,
 ): Deal | null {
+  return freeze(profile, { id: prospect.id, brand: prospect.brand }, line, terms, input);
+}
+
+export interface DirectInput {
+  id: string;
+  /** The sponsor's name, as it should read on the ad. */
+  brand: string;
+  /** GBP agreed, or 0 when the creator has not recorded a fee. */
+  agreed: number;
+  closedOn: string;
+}
+
+/**
+ * A won deal made directly, for a sponsor who never was a prospect: an ad to
+ * put on stream without walking the pipeline first. It is a deal like any
+ * other, so the overlay, the log and the report work unchanged. It has no
+ * prospect, which is how `calibrate` knows it never had a fit score.
+ * @returns null when the brand is blank or the line's channel no longer exists.
+ */
+export function directDeal(profile: CreatorProfile, line: RateLine, terms: DealTerms, input: DirectInput): Deal | null {
+  const brand = input.brand.trim();
+  if (!brand) return null;
+  const close: CloseInput = { id: input.id, outcome: 'won', agreed: input.agreed, lostReason: 'other', closedOn: input.closedOn, fitAtClose: 0 };
+  return freeze(profile, { id: '', brand }, line, terms, close);
+}
+
+/** True for a deal made directly rather than closed from a prospect. */
+export function madeDirectly(deal: Deal): boolean {
+  return deal.prospectId === '';
+}
+
+function freeze(
+  profile: CreatorProfile,
+  prospect: { id: string; brand: string },
+  line: RateLine,
+  terms: DealTerms,
+  input: CloseInput,
+): Deal | null {
   const channel = profile.channels.find((c) => c.id === line.channelId);
   if (!channel) return null;
   const won = input.outcome === 'won';
@@ -103,7 +141,7 @@ export const MIN_DEALS_TO_READ = 3;
 export interface Calibration {
   won: number;
   lost: number;
-  /** Median of agreed ÷ quoted across won deals, or null when there are none. */
+  /** Median of agreed ÷ quoted across won deals with a fee recorded, or null when there are none. */
   closeRatio: number | null;
   /** True when there are enough won deals for the ratio to mean something. */
   readable: boolean;
@@ -132,7 +170,10 @@ function calibrationSentence(ratio: number | null, won: number): string {
 export function calibrate(deals: Deal[]): Calibration {
   const won = deals.filter((d) => d.outcome === 'won' && d.quoted > 0);
   const lost = deals.filter((d) => d.outcome === 'lost');
-  const closeRatio = won.length > 0 ? median(won.map((d) => d.agreed / d.quoted)) : null;
+  // A won deal with no fee recorded says nothing about the card. Counting it as
+  // a close at 0% would tell a creator they are being negotiated down.
+  const paid = won.filter((d) => d.agreed > 0);
+  const closeRatio = paid.length > 0 ? median(paid.map((d) => d.agreed / d.quoted)) : null;
 
   const byVerdict: Calibration['byVerdict'] = {
     strong: { won: 0, total: 0 },
@@ -140,6 +181,8 @@ export function calibrate(deals: Deal[]): Calibration {
     weak: { won: 0, total: 0 },
   };
   for (const deal of deals) {
+    // A deal made directly never had a fit score, so it cannot test whether the score predicts anything.
+    if (madeDirectly(deal)) continue;
     const bucket = byVerdict[verdictFor(deal.fitAtClose)];
     bucket.total += 1;
     if (deal.outcome === 'won') bucket.won += 1;
@@ -155,8 +198,8 @@ export function calibrate(deals: Deal[]): Calibration {
     won: won.length,
     lost: lost.length,
     closeRatio,
-    readable: won.length >= MIN_DEALS_TO_READ,
-    sentence: calibrationSentence(closeRatio, won.length),
+    readable: paid.length >= MIN_DEALS_TO_READ,
+    sentence: calibrationSentence(closeRatio, paid.length),
     byVerdict,
     lostReasons,
   };

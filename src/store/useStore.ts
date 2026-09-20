@@ -21,7 +21,7 @@ import type {
 import { WORKSPACE_VERSION, parseWorkspace, seqFloor, type Workspace } from '../domain/workspace';
 import { SAMPLE_PROFILE, SAMPLE_PROSPECTS } from './sample';
 
-export type Tab = 'profile' | 'rate-card' | 'offer' | 'media-kit' | 'prospects' | 'outreach' | 'deals' | 'board';
+export type Tab = 'profile' | 'rate-card' | 'offer' | 'media-kit' | 'prospects' | 'outreach' | 'deals' | 'ads' | 'board';
 
 interface State {
   profile: CreatorProfile;
