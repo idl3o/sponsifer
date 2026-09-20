@@ -12,6 +12,7 @@ network itself, so every rule below is tested without one.
     GET /api/logger          whether the on-air logger is running, and for which deal
     POST /api/logger/start   start it for a won deal; the body may carry OBS's password
     POST /api/logger/stop    stop it
+    POST /api/obs/setup      put a won deal's placements into OBS; the body may carry OBS's password
 
 Two guards, because a page on any website can send requests to 127.0.0.1:
 
@@ -35,9 +36,9 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Mapping
 
-from . import __version__, onair, report, workspace
+from . import __version__, obs_setup, onair, report, workspace
 from .brand import PRODUCT
-from .runner import Busy, Runner
+from .runner import Busy, ObsRefused, Runner
 
 #: The largest workspace accepted. The board's image is capped near 400 KB.
 MAX_BODY = 4 * 1024 * 1024
@@ -117,6 +118,8 @@ def handle(method: str, path: str, headers: Mapping[str, str], body: bytes, ctx:
         return _json(200, ctx.runner.status().to_json())
     if route in ("/api/logger/start", "/api/logger/stop") and method == "POST" and ctx.runner is not None:
         return _logger(route.rsplit("/", 1)[1], h, body, ctx, ctx.runner)
+    if route == "/api/obs/setup" and method == "POST" and ctx.runner is not None:
+        return _obs_setup(h, body, ctx, ctx.runner)
     if route in ("/api/info", "/api/workspace"):
         return _json(405, {"error": f"{method} is not allowed here"})
     return _json(404, {"error": "no such endpoint"})
@@ -160,6 +163,43 @@ def _not_loggable(deal_id: Any, ctx: Context) -> Response | None:
     return None
 
 
+def _asked(body: bytes, ctx: Context) -> tuple[str, str | None] | Response:
+    """The won deal a request names, and OBS's password if it sent one; or why not."""
+    try:
+        asked = json.loads(body.decode("utf-8"))
+    except (UnicodeDecodeError, ValueError):
+        return _json(400, {"error": "the body is not valid JSON"})
+    if not isinstance(asked, dict):
+        return _json(400, {"error": "send the deal as a JSON object"})
+    deal_id, password = asked.get("deal"), asked.get("password")
+    if password is not None and not isinstance(password, str):
+        return _json(400, {"error": "the password must be text"})
+    return _not_loggable(deal_id, ctx) or (deal_id, password or None)
+
+
+def _obs_setup(h: Mapping[str, str], body: bytes, ctx: Context, runner: Runner) -> Response:
+    """
+    Put a won deal's placements into OBS. A write, behind the write guard: a
+    foreign page must not be able to change what a creator's stream shows. The
+    address OBS is given is built from this server's own port, never from the request.
+    """
+    refused = _refusal(h, body, ctx)
+    if refused:
+        return refused
+    asked = _asked(body, ctx)
+    if isinstance(asked, Response):
+        return asked
+    deal_id, password = asked
+    try:
+        result = runner.with_obs(password, lambda obs: obs_setup.setup(obs, ctx.port, deal_id))
+    except Busy as busy:
+        return _json(409, {"error": f"the logger is running for {busy.deal}, and its log has already written down what "
+                                    "each source is showing; stop it before changing them"})
+    except ObsRefused as no:
+        return _json(502, {"error": str(no), "needsPassword": no.needs_password})
+    return _json(200, result.to_json())
+
+
 def _logger(action: str, h: Mapping[str, str], body: bytes, ctx: Context, runner: Runner) -> Response:
     """Start or stop the on-air logger. The password, if any, goes to OBS and nowhere else."""
     refused = _refusal(h, body, ctx)
@@ -167,20 +207,12 @@ def _logger(action: str, h: Mapping[str, str], body: bytes, ctx: Context, runner
         return refused
     if action == "stop":
         return _json(200, runner.stop().to_json())
+    asked = _asked(body, ctx)
+    if isinstance(asked, Response):
+        return asked
+    deal_id, password = asked
     try:
-        asked = json.loads(body.decode("utf-8"))
-    except (UnicodeDecodeError, ValueError):
-        return _json(400, {"error": "the body is not valid JSON"})
-    if not isinstance(asked, dict):
-        return _json(400, {"error": "send the deal to log as a JSON object"})
-    deal_id, password = asked.get("deal"), asked.get("password")
-    if password is not None and not isinstance(password, str):
-        return _json(400, {"error": "the password must be text"})
-    problem = _not_loggable(deal_id, ctx)
-    if problem:
-        return problem
-    try:
-        status = runner.start(deal_id, password or None)
+        status = runner.start(deal_id, password)
     except Busy as busy:
         if busy.deal == deal_id:
             return _json(200, runner.status().to_json())

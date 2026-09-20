@@ -203,11 +203,12 @@ def test_the_on_air_view_refuses_anything_that_is_not_a_deal_id(ctx, bad):
 # The on-air logger, started and stopped from the app
 
 
-def logger_ctx(tmp_path: Path, socket, deals=None) -> api.Context:
+def logger_ctx(tmp_path: Path, *sockets, deals=None) -> api.Context:
+    """A server with three deals and a runner whose connections to OBS are these sockets, one per connection."""
     path = tmp_path / "workspace.json"
     won = [{"id": "dl-104", "outcome": "won"}, {"id": "dl-200", "outcome": "won"}, {"id": "dl-300", "outcome": "lost"}]
     workspace.save(path, ws(deals=won if deals is None else deals), expected=workspace.ABSENT)
-    return api.Context(path, PORT, runner=runner_for(tmp_path, socket))
+    return api.Context(path, PORT, runner=runner_for(tmp_path, *sockets))
 
 
 def post(ctx, action, data=None, **headers):
@@ -287,6 +288,51 @@ def test_obs_asking_for_a_password_is_passed_on_and_the_password_is_never_echoed
     assert started.status == 200 and b"hunter2" not in started.body
     assert b"hunter2" not in get(ctx, "/api/logger").body
     post(ctx, "stop")
+
+
+# Putting a deal's placements into OBS
+
+
+def setup(ctx, data, **headers):
+    base = {"Host": f"127.0.0.1:{PORT}", "Origin": ORIGIN, "Content-Type": "application/json"}
+    return api.handle("POST", "/api/obs/setup", {**base, **headers}, json.dumps(data).encode(), ctx)
+
+
+def test_a_won_deal_is_put_into_obs_at_this_servers_own_address(tmp_path: Path):
+    from test_obs_setup import FakeStudio
+
+    studio = FakeStudio()
+    done = setup(logger_ctx(tmp_path, studio), {"deal": "dl-104", "url": "https://evil.example/overlay.html?deal=dl-104"})
+    assert done.status == 200 and [s["action"] for s in body(done)["steps"]] == ["create"] * 4
+    assert {item["url"].split("/overlay.html")[0] for item in studio.studio.values()} == {f"http://127.0.0.1:{PORT}"}, \
+        "OBS is only ever given this server's address, whatever the request says"
+
+
+@pytest.mark.parametrize("origin", ["https://evil.example", "null", ""])
+def test_a_foreign_page_cannot_change_what_the_stream_shows(tmp_path: Path, origin):
+    from test_obs_setup import FakeStudio
+
+    studio = FakeStudio()
+    assert setup(logger_ctx(tmp_path, studio), {"deal": "dl-104"}, Origin=origin).status == 403
+    assert studio.studio == {} and studio.requests == []
+
+
+def test_only_a_won_deal_can_be_put_into_obs_and_never_while_the_logger_runs(tmp_path: Path):
+    from test_obs_setup import FakeStudio, address
+
+    showing = {"Sponsor overlay": {"kind": "browser_source", "url": address("dl-104")}}
+    ctx = logger_ctx(tmp_path, FakeStudio(showing), FakeStudio(showing))
+    assert setup(ctx, {"deal": "dl-300"}).status == 409, "a lost deal has nothing to put on stream"
+    assert setup(ctx, {"deal": "dl-999"}).status == 404
+    post(ctx, "start", {"deal": "dl-104"})
+    refused = setup(ctx, {"deal": "dl-200"})
+    assert refused.status == 409 and "stop it before changing them" in body(refused)["error"]
+    post(ctx, "stop")
+
+
+def test_an_obs_that_is_not_there_is_said_plainly(tmp_path: Path):
+    answer = setup(logger_ctx(tmp_path, None), {"deal": "dl-104"})
+    assert answer.status == 502 and "WebSocket server switched on" in body(answer)["error"]
 
 
 def test_a_server_built_without_a_logger_says_there_is_no_such_endpoint(ctx):

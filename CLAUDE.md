@@ -84,6 +84,20 @@
 - **obs-websocket has no request that adds a dock.** The streamer pastes the address under Docks, Custom Browser Docks. Do not edit OBS's config files to do it for them.
 - **The dock's notes are `--muted`, not the app's `--faint`.** `.note` in `--faint` is 3.6:1 on `--bg` and fails WCAG AA; the dock overrides it because its notes say what is not being watched. The app-wide colour is Sam's to change.
 
+### Ads, and putting one into OBS (built 2026-09-20)
+
+- **An ad is a won deal seen from the stream's side. Nothing new is stored,** and the format stays 5. The Ads tab is a view of the deals (`src/domain/ads.ts`), so no ad can exist that the log, the report and the overlay do not also know about. Do not give ads a store of their own.
+- **An ad made directly is a won deal with no prospect** (`directDeal`, `prospectId === ''`), frozen from the profile and the quote like any other. `closeDeal` always sets a prospect id, so the empty one is the marker, and `madeDirectly` is the only reader of it.
+- **The ground truth is protected.** `calibrate` keeps a deal made directly out of the fit verdicts, because it never had a score, and leaves a won deal with no fee recorded out of the close ratio, where it was read as a close at 0% and told the creator they were being negotiated down. The second was already possible from the Deals form.
+- **The scenes are the streamer's and are built once; the sponsor is what changes.** `obs_setup.setup` makes the conventional sources that are missing and points the ones that exist at this deal. It does not make a set per sponsor: OBS source names are global, and the log finds a placement by its conventional name and by nothing else.
+- **What it will not do:** run without an explicit press; touch anything but the four conventional sources; remove, show, hide or move anything; overwrite something else wearing a conventional name (reported as in the way); run while the logger does. New sources are made hidden, in the scene on screen, at the canvas size.
+- **The address OBS is given is built from the server's own port,** never from the request. `test_api.py` locks it with a request that names another.
+- **A source is kept only when its address is this server's, for this deal and this kind.** The right deal at another origin is still re-pointed: the first real OBS this met had a source aimed at a demo port nothing served any more.
+- **The logger refuses to begin while a watched source shows another sponsor,** and says which. Shared sources mean one can still show the last sponsor's art, and a log written while it does is evidence of the wrong thing. It applies to `sponsifer log` too, since both run `Session.begin`. The session line records `pointsAt`. An address it cannot read is no claim either way and does not stop it.
+- **`runner.with_obs` is the one way to reach OBS outside the logger.** It holds the runner's lock throughout, so a logger cannot begin halfway through a setup, and it carries the same rules: the fixed address, a password used once and not kept.
+- **The kinds live in two languages on purpose.** `PLACEMENT_KINDS` in `onair.py` mirrors `PLACEMENTS` in `emblem.ts`, and `test_obs_setup.py` reads the TypeScript file so the two cannot drift. It skips when the app's source is not in the distribution.
+- **Known edge, for developers only:** under `--api-only` the server serves no pages, so a setup pressed from the Vite app points OBS at a port with no overlay. Use the bundled server to set OBS up.
+
 ### The sponsor emblem (built 2026-09-18)
 
 - **Two layers, two owners.** `EmblemStyle` is the creator's house style, one per workspace, applied to every deal's overlay; `Deal.sponsorArt` is the sponsor's image, wording and brand colour. Do not move the style onto the deal or the art onto the workspace: a creator dresses every sponsor the same way, and a sponsor's logo belongs to one deal.
@@ -93,7 +107,7 @@
 - **Motion is CSS only.** An entrance once; a label pulse on the style's period, which is the FTC's periodic disclosure for live streams. No timers in the overlay page.
 - **The editor's own-frame screenshot is a `blob:` URL in component state, never stored.**
 - **A placement's kind is in the address, not the workspace.** Corner emblem, lower third, segment slate, break card: `overlay.html?deal=<id>&kind=<kind>`, with the emblem's address naming none so sources already in OBS keep working. The look is the house style and the content the deal's sponsor art, so adding a kind needs no format bump. Do not give a kind stored fields without deciding that it is worth one.
-- **Each kind has a conventional OBS source name, in two places on purpose:** `PLACEMENTS` in `src/domain/emblem.ts`, shown beside the address to paste, and `CONVENTIONAL_SOURCES` in `python/sponsifer/onair.py`, which the logger watches. Change one and change the other; the log finds a placement by its name and by nothing else.
+- **Each kind has a conventional OBS source name, in two places on purpose:** `PLACEMENTS` in `src/domain/emblem.ts`, shown beside the address to paste, and `PLACEMENT_KINDS` in `python/sponsifer/onair.py` (`CONVENTIONAL_SOURCES` is its keys), which the logger watches. Change one and change the other; the log finds a placement by its name and by nothing else.
 - **`bareLogo` is the corner emblem's alone.** A band, a slate or a card with no words says nothing, so they always carry the line.
 
 ## Publishing (agreed 2026-09-20)

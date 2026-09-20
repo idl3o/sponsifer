@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { LoggerPanel, useLogger } from '../components/LoggerControl';
+import { ObsSetupControl } from '../components/ObsSetupControl';
 import { Pill } from '../components/ui/Primitives';
 import {
   PLACEMENT_STATE_LABEL, dockDeals, dockView, pickDockDeal, type DockDeal, type DockPlacement, type PlacementState,
@@ -151,6 +152,8 @@ export function Dock({ asked, fetcher, pollMs = 3000 }: { asked: string | null; 
           <PlacementRow key={p.kind} placement={p} />
         ))}
       </ul>
+      {/* Not while the logger runs: its log has already written down what each source is showing. */}
+      {loggingDeal === null && <ObsSetupControl key={deal.id} dealId={deal.id} brand={deal.brand} fetcher={fetcher} />}
       <LoggerPanel dealId={deal.id} fetcher={fetcher} logger={logger} />
       <LogLine onAir={onAir} dealId={deal.id} />
       {!reached && <p className="note">Not reaching Sponsifer. This is the last it said.</p>}

@@ -29,7 +29,7 @@ import threading
 from contextlib import AbstractContextManager
 from dataclasses import dataclass, replace
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any, Callable, TypeVar
 
 from . import onair
 from .obs import OBS_URL, Obs, utc_now
@@ -39,6 +39,17 @@ Connect = Callable[[str], AbstractContextManager[Any]]
 
 #: `Obs.identify` raises this message when OBS asks for a password and none was given.
 _NEEDS_PASSWORD = "OBS requires a password"
+
+
+T = TypeVar("T")
+
+
+class ObsRefused(RuntimeError):
+    """OBS could not be reached, or said no. The message is for the creator."""
+
+    def __init__(self, reason: str, needs_password: bool = False) -> None:
+        super().__init__(reason)
+        self.needs_password = needs_password
 
 
 class Busy(RuntimeError):
@@ -141,6 +152,33 @@ class Runner:
         if thread is not None:
             thread.join(wait)
         return self.status()
+
+    def with_obs(self, password: str | None, work: Callable[[Obs], T]) -> T:
+        """
+        One piece of work on a connection of its own, under the same rules as
+        the logger: the address the server was started with, and a password
+        used once and not kept.
+
+        Refused with `Busy` while the logger runs, and the lock is held
+        throughout, so a logger cannot begin halfway through: what the log says
+        the sources were showing stays true.
+        """
+        from websockets.exceptions import WebSocketException
+
+        with self._lock:
+            if self._thread is not None and self._thread.is_alive():
+                raise Busy(self._status.deal or "")
+            phase = "connect"
+            try:
+                with self._connect(self._url) as socket:
+                    obs = Obs(socket, lambda event: None)
+                    phase = "identify"
+                    obs.identify(password)
+                    phase = "work"
+                    return work(obs)
+            except (OSError, RuntimeError, WebSocketException) as error:
+                refused = phase == "identify" and password is not None and not isinstance(error, RuntimeError)
+                raise ObsRefused(_reason(phase, error, self._url, refused), str(error) == _NEEDS_PASSWORD) from error
 
     def _set(self, **changes: Any) -> None:
         with self._lock:

@@ -50,7 +50,7 @@ export function useLogger(fetcher: Fetch, onChanged: () => void, refreshKey = 0)
   return { status, refusal, busy, act };
 }
 
-function PasswordField({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+export function PasswordField({ value, onChange }: { value: string; onChange: (value: string) => void }) {
   return (
     <label className="field">
       <span className="lbl">OBS WebSocket password</span>

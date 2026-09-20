@@ -7,6 +7,7 @@ import type { Deal } from '../domain/types';
 import { useSyncStatus } from '../store/sync';
 import { fetchOnAir, type OnAir } from '../store/workspaceClient';
 import { LoggerControl } from './LoggerControl';
+import { ObsSetupControl } from './ObsSetupControl';
 import { EmblemEditor } from './emblem/EmblemEditor';
 import { Button, copyText } from './ui/Primitives';
 
@@ -126,6 +127,7 @@ export function OnStream({ deal }: { deal: Deal }) {
       </div>
       <OtherPlacements deal={deal} served={served} />
       {editing && <EmblemEditor deal={deal} />}
+      {served && <ObsSetupControl dealId={deal.id} brand={deal.brand} fetcher={window.fetch.bind(window)} />}
       <DockAddress served={served} />
       {served && <LoggerControl dealId={deal.id} onChanged={() => setLogTick((n) => n + 1)} />}
       <OnAirLine deal={deal} onAir={onAir} />

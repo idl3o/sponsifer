@@ -109,6 +109,31 @@ describe('Dock', () => {
     expect(screen.getByText('Live and logging. No placement is on air.')).toBeTruthy();
   });
 
+  it('puts the sponsor into OBS with one press, says exactly what that did, and hides the button while logging', async () => {
+    const logger = { status: idle as unknown };
+    const base = server(fileWith([deal('dl-104', 'Hetzner', '2026-09-10')]), logger);
+    const asked: string[] = [];
+    const fetcher = (async (url: RequestInfo | URL, init?: RequestInit) => {
+      if (String(url) !== '/api/obs/setup') return base.fetcher(url, init);
+      asked.push(String(init?.body));
+      return json(200, {
+        deal: 'dl-104', scene: 'Gameplay',
+        steps: [{ source: 'Sponsor overlay', action: 'repoint', was: 'dl-101' }, { source: 'Sponsor card', action: 'create', was: null }],
+      });
+    }) as Fetch;
+    render(<Dock asked={null} fetcher={fetcher} />);
+    await tick(0);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Put Hetzner into OBS' }));
+    await tick(0);
+    expect(asked).toEqual(['{"deal":"dl-104"}']);
+    expect(screen.getByText('Made Sponsor card in the scene "Gameplay", hidden until you show it; pointed Sponsor overlay at this deal (it was showing dl-101).')).toBeTruthy();
+
+    logger.status = { ...idle, running: true, deal: 'dl-104', sources: ['Sponsor overlay'] };
+    await tick(3000);
+    expect(screen.queryByRole('button', { name: 'Put Hetzner into OBS' })).toBeNull();
+  });
+
   it('never shows the deal’s money, whatever state it is in', async () => {
     const logger = { status: { ...idle, running: true, deal: 'dl-104', sources: ['Sponsor overlay'] } as unknown };
     const { container } = render(<Dock asked={null} fetcher={server(fileWith([deal('dl-104', 'Hetzner', '2026-09-10')]), logger).fetcher} />);

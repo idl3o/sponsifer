@@ -1,3 +1,4 @@
+import { parseObsSetup, type ObsSetupResult } from '../domain/obsSetup';
 import { parseLoggerStatus, type LoggerStatus, type OnAirSummary } from '../domain/onair';
 import { parseWorkspace, type Workspace } from '../domain/workspace';
 
@@ -206,6 +207,42 @@ export function startLogger(fetcher: Fetch, dealId: string, password = ''): Prom
 /** Stop the logger, whichever deal it is for. Safe when none is running. */
 export function stopLogger(fetcher: Fetch): Promise<Logger> {
   return postLogger(fetcher, 'stop', {});
+}
+
+/**
+ * What came of asking the server to put a deal into OBS. `obs` is the server
+ * working and OBS saying no; `refused` is the server declining, for instance
+ * because the logger is running.
+ */
+export type ObsSetup =
+  | { kind: 'ok'; result: ObsSetupResult }
+  | { kind: 'obs'; reason: string; needsPassword: boolean }
+  | { kind: 'refused'; reason: string }
+  | { kind: 'offline' };
+
+/** Put a won deal's placements into OBS. The password is handled as `startLogger` handles it. */
+export async function setupObs(fetcher: Fetch, dealId: string, password = ''): Promise<ObsSetup> {
+  let response: Response;
+  try {
+    response = await fetcher('/api/obs/setup', {
+      method: 'POST',
+      cache: 'no-store',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(password ? { deal: dealId, password } : { deal: dealId }),
+    });
+  } catch {
+    return { kind: 'offline' };
+  }
+  if (response.ok) {
+    const result = parseObsSetup(await response.json().catch(() => null));
+    return result ? { kind: 'ok', result } : { kind: 'offline' };
+  }
+  if (response.status === 502) {
+    const body = (await response.json().catch(() => null)) as { error?: unknown; needsPassword?: unknown } | null;
+    const reason = typeof body?.error === 'string' ? body.error : 'OBS did not answer.';
+    return { kind: 'obs', reason, needsPassword: body?.needsPassword === true };
+  }
+  return { kind: 'refused', reason: `${await errorOf(response)}.` };
 }
 
 /** Where the server keeps the file, for the status line. Empty when it cannot say. */

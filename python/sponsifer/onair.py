@@ -32,6 +32,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Iterable
+from urllib.parse import parse_qs, urlsplit
 
 from .obs import Obs, OnAir, utc_now
 
@@ -39,9 +40,33 @@ from .obs import Obs, OnAir, utc_now
 LOG_DIR = "onair"
 
 #: What each placement's browser source is called in OBS, the corner emblem
-#: first. Mirrors PLACEMENTS in src/domain/emblem.ts, which shows each name
-#: beside the address to paste.
-CONVENTIONAL_SOURCES = ("Sponsor overlay", "Sponsor lower third", "Sponsor slate", "Sponsor card")
+#: first, and the `kind` its overlay address carries. The emblem's address
+#: names no kind, so sources added before the other kinds existed keep working.
+#: Mirrors PLACEMENTS in src/domain/emblem.ts, which shows each name beside the
+#: address to paste; `test_obs_setup.py` reads that file so the two cannot drift.
+PLACEMENT_KINDS: dict[str, str | None] = {
+    "Sponsor overlay": None,
+    "Sponsor lower third": "lower-third",
+    "Sponsor slate": "slate",
+    "Sponsor card": "card",
+}
+CONVENTIONAL_SOURCES = tuple(PLACEMENT_KINDS)
+
+
+def deal_shown(url: str | None) -> str | None:
+    """
+    The deal an overlay address names, or None when it names none.
+
+    Any origin counts: a streamer may have pasted the address from Vite or from
+    `localhost`. None is no claim either way, never "this deal".
+    """
+    if not url:
+        return None
+    parts = urlsplit(url)
+    if not parts.path.endswith("/overlay.html") and not parts.path.endswith("/overlay"):
+        return None
+    deal = parse_qs(parts.query).get("deal", [""])[0]
+    return deal or None
 
 
 def log_path(home: Path, deal_id: str) -> Path:
@@ -90,6 +115,22 @@ class Session:
         self.states = {name: self.states[name] for name in self.sources}
         return missing
 
+    def _pointing(self, obs: Obs) -> dict[str, str | None]:
+        """
+        The deal each watched source is showing, from its address. The sources
+        are shared between sponsors, so one may still show the last sponsor's
+        art, and a log written while it does is evidence of the wrong thing.
+        Refused before anything is written. An address that cannot be read is
+        no claim either way, and does not stop the logger.
+        """
+        showing = {name: deal_shown(obs.request("GetInputSettings", {"inputName": name}).get("inputSettings", {}).get("url"))
+                   for name in self.sources}
+        wrong = [f"{name} is showing {deal}, not {self.deal_id}" for name, deal in showing.items()
+                 if deal is not None and deal != self.deal_id]
+        if wrong:
+            raise RuntimeError(f"{'; '.join(wrong)}. Put {self.deal_id} into OBS first")
+        return showing
+
     def begin(self, obs: Obs) -> None:
         """Write the session's header, then take the first reading from OBS itself."""
         version = obs.request("GetVersion")
@@ -97,8 +138,9 @@ class Session:
         missing = self._keep_present(obs)
         if not self.sources:
             raise RuntimeError(f"none of these sources exist in OBS: {', '.join(asked)}")
+        points_at = self._pointing(obs)
         self.record("session", sources=self.sources, missing=missing, obsVersion=version.get("obsVersion"),
-                    websocketVersion=version.get("obsWebSocketVersion"))
+                    websocketVersion=version.get("obsWebSocketVersion"), pointsAt=points_at)
         self.poll(obs, first=True)
 
     def _stream(self, live: bool, at: str, observed: bool, by: str) -> None:
