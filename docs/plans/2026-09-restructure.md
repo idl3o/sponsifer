@@ -49,7 +49,7 @@ Found along the way:
 
 ## What the pivot still owes
 
-Reassessed on 18 September 2026, before the merge to `main`, and again after it: the sponsor emblem is built (workspace format 5, edited by hand over a stream frame on the deal), and the Lightning branch's format must become 6. Built since the restructure: the offer evaluator (d1aec61), the on-air logger (22fab30), the signed delivery report (f2bcf96), the overlay-pricing evidence (0f08ee5, which declined a benchmark), the rename to Sponsifer (a596a0e), and the app's read-only view of the on-air log and its reports. The `websockets` package won over a hand-rolled client, and the OBS password is asked for per session rather than kept in a keyring. One real OBS session confirmed the overlay renders and that scene switches produce matching activation events.
+Reassessed on 18 September 2026, before the merge to `main`, and again after it: the sponsor emblem is built (workspace format 5, edited by hand over a stream frame on the deal), and the Lightning branch's format must become 6. Built since the restructure: the offer evaluator (d1aec61), the on-air logger (22fab30), the signed delivery report (f2bcf96), the overlay-pricing evidence (0f08ee5, which declined a benchmark), the rename to Sponsifable (a596a0e) and, two days later, to Sponsifer (1e50123), and the app's read-only view of the on-air log and its reports. The `websockets` package won over a hand-rolled client, and the OBS password is asked for per session rather than kept in a keyring. One real OBS session confirmed the overlay renders and that scene switches produce matching activation events.
 
 Built on `feat/placements` and merged on 20 September 2026: a lower third, a segment slate and a break card beside the corner emblem, each its own OBS source, with the on-air log and the delivery report counting each placement separately.
 
@@ -58,7 +58,7 @@ Still owed, in the order they should be taken:
 - **The remaining probe passes** — eye toggle, nested scene, studio mode, source reload — and a test stream, so the logger's riskiest assumption is tested rather than designed around. Only Sam can run these.
 - **Starting and stopping the logger from the app**, so there is no second terminal. Needs process management in the server, and a decision on where the OBS password lives when authentication is on.
 - **The deal panel as an OBS dock.**
-- **The first PyPI release**: recreate both pending publishers under `sponsifer`, TestPyPI first, per `docs/RELEASING.md`.
+- **The first PyPI release.** Both publishers are registered under `sponsifer`, the release workflow's first runs found and fixed its one bug (5a88ba1), and TestPyPI holds `0.2.0.dev0` since 20 September 2026. What remains is the release itself, per `docs/RELEASING.md`: a rehearsal of the real version on TestPyPI, a `v*` tag, and the approval. Until then the name on PyPI is open to anyone.
 - **Payment**, shelved on `sandbox/lightning`.
 - **The framework majors** (React 19, zustand 5, immer 11), deferred three times now.
 - **Bringing the design canvas back in line with the code**, starting with the editor's control sizes.
