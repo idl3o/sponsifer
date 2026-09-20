@@ -319,6 +319,27 @@ def test_the_server_answers_over_http(tmp_path: Path):
         server.server_close()
 
 
+def test_the_dock_is_served_fresh_and_only_to_this_host(tmp_path: Path):
+    web = tmp_path / "web"
+    web.mkdir()
+    (web / "dock.html").write_text("<p>dock</p>", encoding="utf-8")
+    server = make_server(tmp_path / "workspace.json", port=0, web=web)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    try:
+        port = server.ctx.port
+        with urllib.request.urlopen(f"http://127.0.0.1:{port}/dock.html") as response:
+            assert response.read() == b"<p>dock</p>"
+            # OBS keeps a dock's page as it keeps a browser source's, so it must revalidate after a rebuild.
+            assert response.headers.get("Cache-Control") == "no-cache"
+        connection = http.client.HTTPConnection("127.0.0.1", port)
+        connection.request("GET", "/dock.html", headers={"Host": "rebound.example"})
+        assert connection.getresponse().status == 403
+        connection.close()
+    finally:
+        server.shutdown()
+        server.server_close()
+
+
 def test_the_overlay_is_served_and_a_foreign_host_is_refused_everywhere(tmp_path: Path):
     web = tmp_path / "web"
     web.mkdir()

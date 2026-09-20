@@ -18,6 +18,9 @@ The rules it keeps:
   interval open, as the CLI's is: the log says what it saw.
 - **It connects only to the address the server was started with**, never to one
   a request names, so the app cannot be used to make the server call elsewhere.
+- **What is on air now comes from the session's own state**, the state that
+  writes the log, and never from folding the log. The log's open interval may
+  be one an earlier run left open, which is history and not now.
 """
 
 from __future__ import annotations
@@ -47,6 +50,17 @@ class Busy(RuntimeError):
 
 
 @dataclass(frozen=True, slots=True)
+class Watched:
+    """One placement as the running session sees it this moment."""
+
+    source: str
+    #: In the program feed. Not the same as broadcast: the stream may not be live.
+    in_program: bool
+    #: When it went on air, if it is on air now: live and in the program feed.
+    on_air_since: str | None
+
+
+@dataclass(frozen=True, slots=True)
 class Status:
     """What the logger is doing now, or why it is not."""
 
@@ -58,10 +72,16 @@ class Status:
     missing: tuple[str, ...] = ()
     error: str | None = None
     needs_password: bool = False
+    #: Whether OBS is streaming, and each watched placement's state. Empty unless running.
+    stream_live: bool = False
+    placements: tuple[Watched, ...] = ()
 
     def to_json(self) -> dict[str, Any]:
         return {"running": self.running, "deal": self.deal, "since": self.since, "sources": list(self.sources),
-                "missing": list(self.missing), "error": self.error, "needsPassword": self.needs_password}
+                "missing": list(self.missing), "error": self.error, "needsPassword": self.needs_password,
+                "streamLive": self.stream_live,
+                "placements": [{"source": w.source, "inProgram": w.in_program, "onAirSince": w.on_air_since}
+                               for w in self.placements]}
 
 
 def _connect(url: str) -> AbstractContextManager[Any]:
@@ -81,10 +101,18 @@ class Runner:
         self._thread: threading.Thread | None = None
         self._stop = threading.Event()
         self._status = Status()
+        #: The running session, read for its live state. None unless a logger is running.
+        self._session: onair.Session | None = None
 
     def status(self) -> Status:
         with self._lock:
-            return self._status
+            status, session = self._status, self._session
+        if session is None or not status.running:
+            return status
+        # Read from the session that writes the log, so the dock and the log cannot disagree about now.
+        watched = tuple(Watched(name, state.source_active, state.since if state.on_air else None)
+                        for name, state in session.states.items())
+        return replace(status, stream_live=session.live, placements=watched)
 
     def start(self, deal_id: str, password: str | None) -> Status:
         """
@@ -134,6 +162,8 @@ class Runner:
                 session.begin(obs)
                 begun = True
                 watched = tuple(session.sources)
+                with self._lock:
+                    self._session = session
                 self._set(running=True, since=utc_now(), sources=watched,
                           missing=tuple(name for name in asked if name not in watched))
                 ready.set()
@@ -150,6 +180,8 @@ class Runner:
             secret.clear()
             if begun:
                 session.end()
+            with self._lock:
+                self._session = None
             self._set(running=False)
             ready.set()
 

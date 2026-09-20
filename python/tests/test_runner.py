@@ -95,6 +95,56 @@ def test_it_writes_the_same_log_the_cli_does(tmp_path: Path):
     assert len(delivery.intervals) == 1 and delivery.start_observed
 
 
+def wait_for(condition, seconds: float = 2.0) -> bool:
+    deadline = time.monotonic() + seconds
+    while time.monotonic() < deadline:
+        if condition():
+            return True
+        time.sleep(0.01)
+    return False
+
+
+def placement(runner: Runner, source: str) -> dict:
+    return next(p for p in runner.status().to_json()["placements"] if p["source"] == source)
+
+
+def test_the_status_says_what_is_in_the_program_feed_and_what_is_on_air_from_the_loggers_own_state(tmp_path: Path):
+    socket = FakeSocket()
+    runner = runner_for(tmp_path, socket)
+    runner.start("dl-104", None)
+    assert runner.status().to_json()["streamLive"] is False
+    assert placement(runner, "Sponsor overlay") == {"source": "Sponsor overlay", "inProgram": False, "onAirSince": None}
+
+    socket.shows(True)   # in the program feed, but nothing is being broadcast: a wiring check before going live
+    assert wait_for(lambda: placement(runner, "Sponsor overlay")["inProgram"])
+    assert placement(runner, "Sponsor overlay")["onAirSince"] is None
+
+    socket.goes_live()
+    assert wait_for(lambda: placement(runner, "Sponsor overlay")["onAirSince"] is not None)
+    assert runner.status().to_json()["streamLive"] is True
+    assert placement(runner, "Sponsor slate")["onAirSince"] is None, "each placement keeps its own state"
+
+    socket.shows(False)
+    assert wait_for(lambda: placement(runner, "Sponsor overlay")["onAirSince"] is None)
+    runner.stop()
+    stopped = runner.status().to_json()
+    assert stopped["placements"] == [] and stopped["streamLive"] is False, "a stopped logger claims to know nothing live"
+
+
+def test_on_air_now_is_not_confused_with_an_interval_an_earlier_run_left_open(tmp_path: Path):
+    first = FakeSocket()
+    first.live, first.active = True, {"Sponsor overlay": True}
+    second = FakeSocket()
+    second.live = True                                   # still streaming, but the placement has come down
+    runner = runner_for(tmp_path, first, second)
+    runner.start("dl-104", None)
+    runner.stop()                                        # stopped with the placement up: the log leaves it open
+    runner.start("dl-104", None)
+    assert onair.delivery(onair.read_log(onair.log_path(tmp_path, "dl-104"))).open_since is not None
+    assert placement(runner, "Sponsor overlay")["onAirSince"] is None, "the log's open interval is history, not now"
+    runner.stop()
+
+
 def test_only_one_logger_runs_at_a_time(tmp_path: Path):
     runner = runner_for(tmp_path, FakeSocket())
     runner.start("dl-104", None)

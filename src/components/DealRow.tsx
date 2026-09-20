@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { FORMAT_LABEL, PLATFORM_LABEL } from '../domain/benchmarks';
 import { priceOverrun, rateSubmissionUrl } from '../domain/deals';
+import { dockUrl } from '../domain/dock';
 import { PLACEMENTS } from '../domain/emblem';
 import { onAirSentence, placementSentence, reportSentence } from '../domain/onair';
 import { overlayUrl } from '../domain/overlay';
@@ -228,6 +229,20 @@ function OtherPlacements({ deal, served }: { deal: Deal; served: boolean }) {
   );
 }
 
+/** The panel OBS can dock in its own window: what is on air now, and the logger's Start and Stop. */
+function DockAddress({ served }: { served: boolean }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <p className="note">
+      To work from inside OBS, add a dock: Docks, Custom Browser Docks, and paste this address. One dock serves
+      every deal, and it shows no price.{' '}
+      <Button disabled={!served} onClick={() => void copyText(dockUrl(window.location.origin)).then(setCopied)}>
+        {copied ? 'Copied' : 'Copy dock URL'}
+      </Button>
+    </p>
+  );
+}
+
 /** The OBS browser source that puts the emblem on stream, and what the log says about it. */
 function OnStream({ deal }: { deal: Deal }) {
   const served = useSyncStatus((s) => s.mode === 'file');
@@ -256,6 +271,7 @@ function OnStream({ deal }: { deal: Deal }) {
       </div>
       <OtherPlacements deal={deal} served={served} />
       {editing && <EmblemEditor deal={deal} />}
+      <DockAddress served={served} />
       {served && <LoggerControl dealId={deal.id} onChanged={() => setLogTick((n) => n + 1)} />}
       <OnAirLine deal={deal} onAir={onAir} />
     </>

@@ -79,11 +79,33 @@ describe('reportSentence', () => {
   });
 });
 
-const idle: LoggerStatus = { running: false, deal: null, since: null, sources: [], missing: [], error: null, needsPassword: false };
+const idle: LoggerStatus = {
+  running: false, deal: null, since: null, sources: [], missing: [], error: null, needsPassword: false,
+  streamLive: false, placements: [],
+};
 
 describe('parseLoggerStatus', () => {
   it('accepts what the server sends', () => {
     expect(parseLoggerStatus({ ...idle, running: true, deal: 'dl-104', sources: ['Sponsor overlay'] })?.deal).toBe('dl-104');
+  });
+
+  it('carries what the running logger says is live', () => {
+    const placements = [{ source: 'Sponsor overlay', inProgram: true, onAirSince: '2026-09-20T14:05:00.000+00:00' }];
+    const parsed = parseLoggerStatus({ ...idle, running: true, streamLive: true, placements });
+    expect(parsed?.streamLive).toBe(true);
+    expect(parsed?.placements).toEqual(placements);
+  });
+
+  it('reads a server from before the live fields as one that reports nothing live', () => {
+    const older: Record<string, unknown> = { ...idle };
+    delete older.streamLive;
+    delete older.placements;
+    expect(parseLoggerStatus(older)).toEqual(idle);
+  });
+
+  it('refuses a malformed placement', () => {
+    expect(parseLoggerStatus({ ...idle, placements: [{ source: 'Sponsor overlay', inProgram: 'yes', onAirSince: null }] })).toBeNull();
+    expect(parseLoggerStatus({ ...idle, streamLive: 'yes' })).toBeNull();
   });
 
   it('refuses anything else rather than guessing', () => {

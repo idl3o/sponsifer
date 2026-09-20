@@ -1,0 +1,94 @@
+/*
+ * The dock is a narrow panel inside OBS, often 250 to 400 px wide and as tall
+ * as the streamer leaves it. One column, nothing that scrolls sideways, and
+ * the one line that matters most, what is on air now, at the top.
+ */
+
+html,
+body {
+  margin: 0;
+  min-width: 0;
+}
+
+#dock {
+  box-sizing: border-box;
+  max-width: 520px;
+  padding: 12px;
+}
+
+#dock label.field {
+  margin-bottom: 10px;
+}
+
+#dock select {
+  width: 100%;
+  min-width: 0;
+}
+
+.dock-headline {
+  margin: 0 0 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-left-width: 3px;
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+/* The tone is carried by the sentence as well as the colour, so it never rests on colour alone. */
+.dock-headline.on-air {
+  border-left-color: var(--good);
+}
+
+.dock-headline.logging {
+  border-left-color: var(--accent);
+}
+
+.dock-headline.idle {
+  border-left-color: var(--faint);
+  color: var(--muted);
+}
+
+.dock-placements {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+}
+
+.dock-placement {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 8px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--line-soft);
+  font-size: 13px;
+}
+
+.dock-placement-name {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.dock-source {
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+
+.dock-empty {
+  padding: 12px;
+}
+
+/*
+ * The app's .note is --faint, which is 3.6:1 on --bg and fails WCAG AA. In the
+ * dock a note says what is not being watched, so it takes --muted, at 6.7:1.
+ */
+#dock .note {
+  color: var(--muted);
+}

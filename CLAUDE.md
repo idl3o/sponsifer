@@ -72,6 +72,18 @@
 - **`python/sponsifer/obs.py` is the one copy of the protocol layer.** `scripts/obs_probe.py` imports it, falling back to adding `python/` to `sys.path` when the package is not installed.
 - `src/store/sync.ts` and `src/store/workspaceClient.ts` are the I/O edge for the workspace, outside `src/domain`. `sync.ts` takes its fetch, storage and focus hook as arguments, so it is tested in node.
 
+### The OBS dock (built 2026-09-20)
+
+- **One dock serves every deal,** at `/dock.html`, because adding a dock in OBS is a chore nobody repeats per sponsor. It opens on the deal being logged, then the one its address names, then the most recent won deal not yet delivered. The chooser is fixed while the logger runs, since the logger holds one deal.
+- **The dock draws no price, the same as the overlay.** It is part of OBS's own window, which is captured and shared more often than a streamer means it to be. `DockDeal` is an id and a brand, `DockView` has no field a price could travel in, and `dock.test.ts` and `Dock.test.tsx` lock both.
+- **What is on air now comes from the running logger's own state** (`Status.placements` in `runner.py`), never from folding the log. The log's open interval may be one an earlier run left open, which is history and not now. `test_runner.py` locks the difference.
+- **In the program feed is not on air.** The dock shows both, because a source showing before the stream is live is the wiring check a streamer wants, and counts for nothing.
+- **The dock polls and the app does not.** Nobody focuses a dock, and a panel whose job is to say what is on air is no use stale. `useLogger` takes a `refreshKey`: the dock passes its poll's tick, the app passes none and runs no timer. Only an action sets or clears the control's refusal, so a poll does not wipe what the creator was told.
+- **It never writes the workspace.** It reads the file and the logger, and its only writes are the logger's start and stop.
+- **It may speak when something is wrong,** unlike the overlay, because it is not on stream.
+- **obs-websocket has no request that adds a dock.** The streamer pastes the address under Docks, Custom Browser Docks. Do not edit OBS's config files to do it for them.
+- **The dock's notes are `--muted`, not the app's `--faint`.** `.note` in `--faint` is 3.6:1 on `--bg` and fails WCAG AA; the dock overrides it because its notes say what is not being watched. The app-wide colour is Sam's to change.
+
 ### The sponsor emblem (built 2026-09-18)
 
 - **Two layers, two owners.** `EmblemStyle` is the creator's house style, one per workspace, applied to every deal's overlay; `Deal.sponsorArt` is the sponsor's image, wording and brand colour. Do not move the style onto the deal or the art onto the workspace: a creator dresses every sponsor the same way, and a sponsor's logo belongs to one deal.

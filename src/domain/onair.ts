@@ -99,6 +99,23 @@ export interface LoggerStatus {
   error: string | null;
   /** OBS asked for its WebSocket password and none was given. */
   needsPassword: boolean;
+  /** Whether OBS is streaming. False unless the logger is running. */
+  streamLive: boolean;
+  /** Each watched placement as the running logger sees it this moment. Empty unless it is running. */
+  placements: LoggerPlacement[];
+}
+
+/**
+ * One placement's state now, from the session that writes the log. It is not
+ * derived from the log: the log's open interval may be one an earlier run left
+ * open, which is history.
+ */
+export interface LoggerPlacement {
+  source: string;
+  /** In the program feed, which is not the same as broadcast: the stream may not be live. */
+  inProgram: boolean;
+  /** When it went on air, if it is on air now. */
+  onAirSince: string | null;
 }
 
 function strings(value: unknown): string[] | null {
@@ -107,6 +124,22 @@ function strings(value: unknown): string[] | null {
 
 function textOrNull(value: unknown): string | null | undefined {
   return value === null || typeof value === 'string' ? value : undefined;
+}
+
+function parsePlacements(value: unknown): LoggerPlacement[] | null {
+  // A server started before these fields existed sends none. That is a logger
+  // that reports nothing live, not a malformed answer.
+  if (value === undefined) return [];
+  if (!Array.isArray(value)) return null;
+  const out: LoggerPlacement[] = [];
+  for (const item of value as unknown[]) {
+    if (typeof item !== 'object' || item === null) return null;
+    const o = item as Record<string, unknown>; // narrowed field by field below
+    const onAirSince = textOrNull(o.onAirSince);
+    if (typeof o.source !== 'string' || typeof o.inProgram !== 'boolean' || onAirSince === undefined) return null;
+    out.push({ source: o.source, inProgram: o.inProgram, onAirSince });
+  }
+  return out;
 }
 
 /** The status as typed data, or null when the answer is not one. */
@@ -119,12 +152,17 @@ export function parseLoggerStatus(data: unknown): LoggerStatus | null {
   const sources = strings(o.sources);
   const missing = strings(o.missing);
   if (typeof o.running !== 'boolean' || typeof o.needsPassword !== 'boolean') return null;
-  if (deal === undefined || since === undefined || error === undefined || !sources || !missing) return null;
-  return { running: o.running, deal, since, sources, missing, error, needsPassword: o.needsPassword };
+  const placements = parsePlacements(o.placements);
+  if (deal === undefined || since === undefined || error === undefined || !sources || !missing || !placements) return null;
+  if (o.streamLive !== undefined && typeof o.streamLive !== 'boolean') return null;
+  return {
+    running: o.running, deal, since, sources, missing, error, needsPassword: o.needsPassword,
+    streamLive: o.streamLive === true, placements,
+  };
 }
 
 /** "14:02 UTC" from an ISO time, or the text itself when it is not one. */
-function clockOf(iso: string): string {
+export function clockOf(iso: string): string {
   const match = /T(\d{2}:\d{2})/.exec(iso);
   return match?.[1] ? `${match[1]} UTC` : iso;
 }
