@@ -40,7 +40,7 @@ The GitHub repository was renamed to `idl3o/sponsifer` on 20 September 2026, and
 
 ## Still to do
 
-- **Reserve `sponsifer`** on PyPI and TestPyPI before the first release, and set up trusted publishing for it (see `docs/RELEASING.md`).
+- **PyPI itself is deliberately unclaimed.** Neither index reserves a name; the first upload takes it. TestPyPI was claimed on 20 September 2026 with `0.2.0.dev0`, built from commit 1fe1a71 by release run 35531438611 and carrying PyPI's provenance attestation. It was a development version on purpose: a version can never be uploaded twice and the workflow skips one that is already there, so claiming with `0.2.0` would have left that day's build under the number for good, and the rehearsal before the real 0.2.0 would have installed a stale file without saying so. The commit lived on a throwaway branch, since deleted; `main` never carried the development version. Nothing goes to PyPI until the first release, which takes the name there: a `v*` tag and an approval of the `pypi` environment (see `docs/RELEASING.md`). Until then the name on PyPI is open to anyone.
 - **Search the remaining trademark registers**, which no script reached: EUIPO and the USPTO for SPONSIFER, and all three registers for the neighbours SPONSIFIER, SPONSAFIER and SPONSIFI.
 
 ## Names checked and rejected
