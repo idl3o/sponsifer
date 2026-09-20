@@ -21,7 +21,7 @@ const workspace = (deals: Deal[]) =>
 
 const idle: LoggerStatus = {
   running: false, deal: null, since: null, sources: [], missing: [], error: null, needsPassword: false,
-  streamLive: false, placements: [],
+  streamLive: false, placements: [], warnings: [],
 };
 const hetzner: DockDeal = { id: 'dl-104', brand: 'Hetzner' };
 const stateOf = (view: ReturnType<typeof dockView>, source: string) => view.placements.find((p) => p.sourceName === source)?.state;

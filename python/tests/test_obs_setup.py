@@ -232,3 +232,29 @@ def test_setup_goes_through_the_same_password_handling_as_the_logger(tmp_path: P
     studio = FakeStudio(password="hunter2")
     result = runner_for(tmp_path, studio).with_obs("hunter2", lambda obs: obs_setup.setup(obs, PORT, "dl-104"))
     assert len(result.steps) == 4 and "Sponsor overlay" in studio.studio
+
+
+# A right deal at a dead address
+
+
+def test_the_logger_warns_when_a_source_shows_the_right_deal_from_an_address_this_server_does_not_serve(tmp_path: Path):
+    # Found against a real OBS: the deal matched, so the logger ran, while the overlay drew nothing from a dead port.
+    studio = FakeStudio({
+        "Sponsor overlay": {"kind": "browser_source", "url": address("dl-104", origin="http://127.0.0.1:5190")},
+        "Sponsor slate": {"kind": "browser_source", "url": address("dl-104", "slate")},
+    })
+    runner = runner_for(tmp_path, studio, port=PORT)
+    status = runner.start("dl-104", None)
+    assert status.running, "the deal is right, so this is a warning and not a refusal"
+    assert status.to_json()["warnings"] == [
+        "Sponsor overlay loads from 127.0.0.1:5190, which is not this server, so it may be drawing nothing. Put dl-104 into OBS to point it here."
+    ]
+    runner.stop()
+    assert runner.status().to_json()["warnings"] == []
+
+
+def test_a_runner_that_does_not_know_its_servers_port_makes_no_claim(tmp_path: Path):
+    studio = FakeStudio({"Sponsor overlay": {"kind": "browser_source", "url": address("dl-104", origin="http://127.0.0.1:5190")}})
+    runner = runner_for(tmp_path, studio)
+    assert runner.start("dl-104", None).to_json()["warnings"] == []
+    runner.stop()

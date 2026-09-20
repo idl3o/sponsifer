@@ -81,7 +81,7 @@ describe('reportSentence', () => {
 
 const idle: LoggerStatus = {
   running: false, deal: null, since: null, sources: [], missing: [], error: null, needsPassword: false,
-  streamLive: false, placements: [],
+  streamLive: false, placements: [], warnings: [],
 };
 
 describe('parseLoggerStatus', () => {
@@ -100,6 +100,7 @@ describe('parseLoggerStatus', () => {
     const older: Record<string, unknown> = { ...idle };
     delete older.streamLive;
     delete older.placements;
+    delete older.warnings;
     expect(parseLoggerStatus(older)).toEqual(idle);
   });
 
@@ -126,6 +127,13 @@ describe('loggerSentence', () => {
 
   it('names a placement OBS does not have, because the log will never see it', () => {
     expect(loggerSentence({ ...running, missing: ['Sponsor card'] }, 'dl-104')).toContain('not in OBS, so not watched: Sponsor card');
+  });
+
+  it('passes on what the server warns of, in its words, after what is being watched', () => {
+    const warned = { ...running, warnings: ['Sponsor overlay loads from 127.0.0.1:5190, which is not this server.'] };
+    expect(loggerSentence(warned, 'dl-104')).toBe(
+      'Logging since 14:02 UTC; watching Sponsor overlay, Sponsor slate. Sponsor overlay loads from 127.0.0.1:5190, which is not this server.',
+    );
   });
 
   it('points at the deal that holds the logger', () => {

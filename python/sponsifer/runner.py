@@ -30,6 +30,7 @@ from contextlib import AbstractContextManager
 from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any, Callable, TypeVar
+from urllib.parse import urlsplit
 
 from . import onair
 from .obs import OBS_URL, Obs, utc_now
@@ -86,11 +87,13 @@ class Status:
     #: Whether OBS is streaming, and each watched placement's state. Empty unless running.
     stream_live: bool = False
     placements: tuple[Watched, ...] = ()
+    #: Things the creator should know that do not stop the logger. Empty unless running.
+    warnings: tuple[str, ...] = ()
 
     def to_json(self) -> dict[str, Any]:
         return {"running": self.running, "deal": self.deal, "since": self.since, "sources": list(self.sources),
                 "missing": list(self.missing), "error": self.error, "needsPassword": self.needs_password,
-                "streamLive": self.stream_live,
+                "streamLive": self.stream_live, "warnings": list(self.warnings),
                 "placements": [{"source": w.source, "inProgram": w.in_program, "onAirSince": w.on_air_since}
                                for w in self.placements]}
 
@@ -105,8 +108,10 @@ class Runner:
     """At most one on-air logger, on a thread of its own."""
 
     def __init__(self, home: Path, url: str = OBS_URL, connect: Connect = _connect,
-                 poll_every: float = 2.0, ready_timeout: float = 8.0) -> None:
+                 poll_every: float = 2.0, ready_timeout: float = 8.0, port: int | None = None) -> None:
         self._home, self._url, self._connect = home, url, connect
+        #: The port this runner's server answers on, so it can tell a source aimed elsewhere. None makes no claim.
+        self._port = port
         self._poll_every, self._ready_timeout = poll_every, ready_timeout
         self._lock = threading.Lock()
         self._thread: threading.Thread | None = None
@@ -203,7 +208,8 @@ class Runner:
                 with self._lock:
                     self._session = session
                 self._set(running=True, since=utc_now(), sources=watched,
-                          missing=tuple(name for name in asked if name not in watched))
+                          missing=tuple(name for name in asked if name not in watched),
+                          warnings=_elsewhere(session.addresses, self._port, deal_id))
                 ready.set()
                 phase = "listen"
                 onair.listen(obs, session, self._poll_every, stop=stop.is_set)
@@ -220,8 +226,26 @@ class Runner:
                 session.end()
             with self._lock:
                 self._session = None
-            self._set(running=False)
+            self._set(running=False, warnings=())
             ready.set()
+
+
+def _elsewhere(addresses: dict[str, str | None], port: int | None, deal_id: str) -> tuple[str, ...]:
+    """
+    Sources that load from somewhere this server does not answer. The deal in
+    the address is right, or the session would have refused, so the logger runs;
+    but an overlay aimed at a dead port draws nothing, and the log would count
+    minutes the recording cannot show. Found against a real OBS.
+    """
+    if port is None:
+        return ()
+    out = []
+    for name, url in addresses.items():
+        parts = urlsplit(url or "")
+        if url and not (parts.hostname in ("127.0.0.1", "localhost") and parts.port == port):
+            out.append(f"{name} loads from {parts.netloc}, which is not this server, so it may be drawing nothing. "
+                       f"Put {deal_id} into OBS to point it here.")
+    return tuple(out)
 
 
 def _reason(phase: str, error: BaseException, url: str, password_refused: bool) -> str:

@@ -118,10 +118,10 @@ For development:
 npm run dev        # http://localhost:5180, saving in the browser only
 npm run dev:api    # beside it: the workspace server, so the app saves to the file
 npm run check      # every gate at once: typecheck, lint, vitest and pytest. Run before any push
-npm test           # 270 tests, including the calibration sweep
+npm test           # 271 tests, including the calibration sweep
 npm run typecheck
 npm run lint       # includes the house rules: no function over 50 lines
-python -m pytest   # 190 tests: the workspace server, receipts, SSH signatures, timestamps, seal and verify, the on-air log, its runner and the report
+python -m pytest   # 192 tests: the workspace server, receipts, SSH signatures, timestamps, seal and verify, the on-air log, its runner and the report
 
 node scripts/playtest.mjs   # drives real Chrome, screenshots every tab,
                             # checks overflow, tap targets and broken numbers

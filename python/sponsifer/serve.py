@@ -110,7 +110,7 @@ def make_server(workspace: Path, port: int = 5180, api_only: bool = False,
     """Bind 127.0.0.1. Port 0 picks a free port, which the context then records."""
     server = _Server(("127.0.0.1", port), _Handler)
     server.web, server.api_only = web, api_only
-    runner = Runner(home or workspace.parent, obs_url)
+    runner = Runner(home or workspace.parent, obs_url, port=server.server_address[1])
     server.ctx = api.Context(workspace, server.server_address[1], allowed_origins, home=home, runner=runner)
     return server
 

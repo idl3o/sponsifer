@@ -103,6 +103,8 @@ export interface LoggerStatus {
   streamLive: boolean;
   /** Each watched placement as the running logger sees it this moment. Empty unless it is running. */
   placements: LoggerPlacement[];
+  /** Things the creator should know that do not stop the logger, in the server's words. */
+  warnings: string[];
 }
 
 /**
@@ -153,11 +155,13 @@ export function parseLoggerStatus(data: unknown): LoggerStatus | null {
   const missing = strings(o.missing);
   if (typeof o.running !== 'boolean' || typeof o.needsPassword !== 'boolean') return null;
   const placements = parsePlacements(o.placements);
-  if (deal === undefined || since === undefined || error === undefined || !sources || !missing || !placements) return null;
+  // As with the live fields, a server from before warnings existed sends none.
+  const warnings = o.warnings === undefined ? [] : strings(o.warnings);
+  if (deal === undefined || since === undefined || error === undefined || !sources || !missing || !placements || !warnings) return null;
   if (o.streamLive !== undefined && typeof o.streamLive !== 'boolean') return null;
   return {
     running: o.running, deal, since, sources, missing, error, needsPassword: o.needsPassword,
-    streamLive: o.streamLive === true, placements,
+    streamLive: o.streamLive === true, placements, warnings,
   };
 }
 
@@ -179,7 +183,7 @@ export function loggerSentence(status: LoggerStatus, dealId: string): string {
   if (status.running) {
     const parts = [`Logging since ${status.since ? clockOf(status.since) : 'just now'}`, `watching ${status.sources.join(', ')}`];
     if (status.missing.length > 0) parts.push(`not in OBS, so not watched: ${status.missing.join(', ')}`);
-    return `${parts.join('; ')}.`;
+    return [`${parts.join('; ')}.`, ...status.warnings].join(' ');
   }
   if (status.deal === dealId && status.error) return status.error;
   return 'Not logging. Start it before you go live, so the log sees the stream begin.';

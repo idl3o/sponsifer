@@ -32,11 +32,11 @@ Run the suite. It is fast.
 
 ```bash
 npm install
-npm test           # 270 tests
+npm test           # 271 tests
 npm run typecheck
 npm run lint
 node scripts/playtest.mjs
-python -m pytest   # 190 tests, if you touch python/
+python -m pytest   # 192 tests, if you touch python/
 ```
 
 Anything under `python/` or `docs/provenance.md` is bound by the provenance rules in [docs/provenance.md](docs/provenance.md): sealing is opt-in, it cannot be retroactive, and a missing watermark is never treated as evidence. A change that weakens any of those will not be merged.

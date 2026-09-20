@@ -92,6 +92,8 @@ class Session:
     states: dict[str, OnAir] = field(default_factory=dict)
     #: Whether OBS is streaming, as last known, and when it went live.
     live: bool = False
+    #: Each watched source's address, as read when the session began. None when OBS would not say.
+    addresses: dict[str, str | None] = field(default_factory=dict)
     stream_started_at: str | None = None
     start_observed: bool = False
     disagreements: int = 0
@@ -123,8 +125,9 @@ class Session:
         Refused before anything is written. An address that cannot be read is
         no claim either way, and does not stop the logger.
         """
-        showing = {name: deal_shown(obs.request("GetInputSettings", {"inputName": name}).get("inputSettings", {}).get("url"))
-                   for name in self.sources}
+        self.addresses = {name: obs.request("GetInputSettings", {"inputName": name}).get("inputSettings", {}).get("url")
+                          for name in self.sources}
+        showing = {name: deal_shown(url) for name, url in self.addresses.items()}
         wrong = [f"{name} is showing {deal}, not {self.deal_id}" for name, deal in showing.items()
                  if deal is not None and deal != self.deal_id]
         if wrong:
