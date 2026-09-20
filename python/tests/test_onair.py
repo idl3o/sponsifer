@@ -150,6 +150,30 @@ def test_an_interval_left_open_is_reported_as_open_rather_than_closed(setup):
     assert delivery.intervals == []
 
 
+def test_an_interval_a_stopped_logger_left_open_is_not_forgotten_when_it_starts_again(setup):
+    fake, obs, session, path = setup
+    drive(fake, obs, session, [lambda: fake.goes_live(), lambda: fake.shows(True)])  # stopped with the placement up
+    left_open = summary(path).open_since
+    assert left_open is not None
+
+    again = onair.Session("dl-104", "Sponsor overlay", lambda line: onair.append(path, line))
+    drive(fake, Obs(fake, again.event), again, [lambda: fake.shows(False)])          # started again, saw it leave
+    delivery = summary(path)
+
+    assert len(delivery.intervals) == 1, "the second run saw its interval whole"
+    assert delivery.open_since == left_open, "the first run's interval never ended in the log, and the summary says so"
+    assert delivery.placements[0].open_since == left_open
+
+
+def test_following_stops_when_asked_and_leaves_the_session_to_be_closed(setup):
+    fake, obs, session, path = setup
+    turns = iter([False, False, True])
+    onair.follow(obs, session, poll_every=0, stop=lambda: next(turns))
+    kinds = [line["kind"] for line in onair.read_log(path)]
+    assert kinds[0] == "session"
+    assert "end" not in kinds, "stopping is the caller's to record, as Ctrl+C is in the CLI"
+
+
 def test_a_stream_already_running_gives_no_offsets_into_the_recording(setup):
     fake, obs, session, path = setup
     fake.live = True  # the logger started after the stream did

@@ -160,14 +160,25 @@ class Session:
         self.record("end", open=still_open, disagreements=self.disagreements)
 
 
-def follow(obs: Obs, session: Session, poll_every: float = 2.0, polls: int | None = None) -> None:
+def follow(obs: Obs, session: Session, poll_every: float = 2.0, polls: int | None = None,
+           stop: Callable[[], bool] | None = None) -> None:
     """
     Take the first reading, then events as they arrive and a poll whenever it
     is quiet. `polls` bounds the loop for tests; live it runs until interrupted.
     """
     session.begin(obs)
+    listen(obs, session, poll_every, polls, stop)
+
+
+def listen(obs: Obs, session: Session, poll_every: float = 2.0, polls: int | None = None,
+           stop: Callable[[], bool] | None = None) -> None:
+    """
+    The loop after the first reading. `stop` is asked once a turn, so a logger
+    run from the server ends within one poll of being told to. Ending the
+    session is the caller's, as it is for the CLI's Ctrl+C.
+    """
     count = 0
-    while polls is None or count < polls:
+    while (polls is None or count < polls) and not (stop is not None and stop()):
         event = obs.next_event(poll_every)
         if event is not None:
             session.event(event)
@@ -293,6 +304,8 @@ class _Fold:
     start_observed: bool = False
     disagreements: int = 0
     open: dict[str, str] = field(default_factory=dict)
+    #: Per source, the earliest interval a run left open and a later run began over.
+    unclosed: dict[str, str] = field(default_factory=dict)
     intervals: list[Interval] = field(default_factory=list)
 
     def take(self, line: dict[str, Any]) -> None:
@@ -319,6 +332,11 @@ class _Fold:
         source = self._know(str(line.get("source") or (self.sources[0] if self.sources else "")))
         at = str(line.get("at_") or line.get("at"))
         if line.get("state") == "start":
+            if source in self.open:
+                # A run stopped with this placement up, and the next began with
+                # it up again. Nobody saw the first interval end, so it stays
+                # reported as open rather than being written over.
+                self.unclosed.setdefault(source, self.open[source])
             self.open[source] = at
         elif line.get("state") == "end" and source in self.open:
             began = self.open.pop(source)
@@ -326,14 +344,18 @@ class _Fold:
             offset = offset_seconds(self.stream_started_at, began) if self.start_observed else None
             self.intervals.append(Interval(source, began, at, round(seconds, 3), offset))
 
+    def _open_since(self, source: str) -> str | None:
+        return min(filter(None, (self.unclosed.get(source), self.open.get(source))), default=None)
+
     def done(self) -> Delivery:
         ordered = sorted(self.intervals, key=lambda i: i.start)
+        still_open = list(filter(None, (self._open_since(name) for name in {*self.open, *self.unclosed})))
         placements = [
             PlacementTotal(
                 source=name,
                 total_seconds=sum(i.seconds for i in ordered if i.source == name),
                 intervals=sum(1 for i in ordered if i.source == name),
-                open_since=self.open.get(name),
+                open_since=self._open_since(name),
             )
             for name in self.sources
         ]
@@ -344,7 +366,7 @@ class _Fold:
             placements=placements,
             total_seconds=union_seconds(ordered),
             disagreements=self.disagreements,
-            open_since=min(self.open.values()) if self.open else None,
+            open_since=min(still_open, default=None),
             stream_started_at=self.stream_started_at,
             start_observed=self.start_observed,
         )
