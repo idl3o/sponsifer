@@ -9,4 +9,4 @@ the home directory. docs/rename.md lists each one.
 from __future__ import annotations
 
 #: The name shown to people.
-PRODUCT = "Sponsifable"
+PRODUCT = "Sponsifer"

@@ -63,7 +63,7 @@ describe('placementSentence', () => {
 
 describe('reportSentence', () => {
   it('names the latest signed report, or the command to make one', () => {
-    expect(reportSentence(base, 'dl-104')).toBe('No signed report yet. Run `sponsifable report dl-104`.');
+    expect(reportSentence(base, 'dl-104')).toBe('No signed report yet. Run `sponsifer report dl-104`.');
     expect(reportSentence({ ...base, reports: ['dl-104-20260918T220000Z', 'dl-104-20260919T090000Z'] }, 'dl-104')).toBe(
       'Signed report: dl-104-20260919T090000Z',
     );

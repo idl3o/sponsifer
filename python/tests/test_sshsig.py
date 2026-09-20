@@ -7,8 +7,8 @@ from pathlib import Path
 import pytest
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
-from sponsifable import sshsig
-from sponsifable.keys import SshKeygenSigner, allowed_signers_line
+from sponsifer import sshsig
+from sponsifer.keys import SshKeygenSigner, allowed_signers_line
 
 MESSAGE = b'{"serial":"6715878664","usageRights":"whitelisting-30"}'
 ssh_keygen = shutil.which("ssh-keygen")

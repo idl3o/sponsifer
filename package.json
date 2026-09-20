@@ -1,9 +1,9 @@
 {
-  "name": "sponsifable",
+  "name": "sponsifer",
   "private": true,
   "version": "0.2.0",
   "type": "module",
-  "description": "Work out what to charge a sponsor, prove the audience, send the pitch, track the pipeline. Local-first, no account, no telemetry.",
+  "description": "Price a sponsorship and defend the number, put the sponsor on stream through OBS, and sign a report of when it was on air. Local-first, no account, no telemetry.",
   "scripts": {
     "dev": "vite",
     "dev:api": "node scripts/dev-api.mjs",
@@ -43,7 +43,7 @@
   "author": "Sam Lavington (@idl3o)",
   "repository": {
     "type": "git",
-    "url": "https://github.com/idl3o/sponsifable.git"
+    "url": "https://github.com/idl3o/sponsifer.git"
   },
   "keywords": [
     "creator-economy",
@@ -53,7 +53,10 @@
     "pricing",
     "local-first",
     "creators",
-    "influencer-marketing"
+    "influencer-marketing",
+    "obs",
+    "twitch",
+    "streaming"
   ],
   "engines": {
     "node": "^20.19.0 || >=22.12.0"

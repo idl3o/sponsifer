@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from sponsifable import cli, workspace
+from sponsifer import cli, workspace
 
 
 def parse(*argv):
@@ -52,7 +52,7 @@ def test_sealing_says_where_the_workspace_should_be_rather_than_raising(tmp_path
     assert cli._seal(args, home) == 1
     error = capsys.readouterr().err
     assert str(workspace.default_path(home)) in error
-    assert "sponsifable serve" in error
+    assert "sponsifer serve" in error
 
 
 @pytest.mark.parametrize(

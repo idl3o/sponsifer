@@ -1,4 +1,4 @@
-"""RFC 3161 timestamping: the one network call in Sponsifable.
+"""RFC 3161 timestamping: the one network call in Sponsifer.
 
 A salted commitment's SHA-256 digest goes to a timestamp authority, which
 returns a signed token saying it saw that digest at a given time. The digest

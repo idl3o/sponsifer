@@ -36,7 +36,7 @@ function SightingLine({ deal, sighting }: { deal: Deal; sighting: Sighting }) {
       <div className="why">
         <div className="row" style={{ gap: 6, marginBottom: 6 }}>
           {sighting.verified ? (
-            <Pill tone="good">verified by sponsifable verify</Pill>
+            <Pill tone="good">verified by sponsifer verify</Pill>
           ) : (
             <Pill tone="warn">not verified</Pill>
           )}
@@ -136,7 +136,7 @@ function RightsNote({ deal }: { deal: Deal }) {
   }
   return (
     <p className="note">
-      Not sealed. To establish rights, run <code>sponsifable seal {deal.id} your-file.png</code>{' '}
+      Not sealed. To establish rights, run <code>sponsifer seal {deal.id} your-file.png</code>{' '}
       before delivering. Sealing is optional and cannot be done after delivery.
     </p>
   );
@@ -181,7 +181,7 @@ function OnAirLine({ deal, onAir }: { deal: Deal; onAir: OnAir | null }) {
   if (onAir.kind === 'missing') {
     return (
       <p className="note">
-        No on-air log yet. Run <code>sponsifable log {deal.id}</code> while you stream, with OBS's WebSocket
+        No on-air log yet. Run <code>sponsifer log {deal.id}</code> while you stream, with OBS's WebSocket
         server switched on.
       </p>
     );
@@ -195,7 +195,7 @@ function OnAirLine({ deal, onAir }: { deal: Deal; onAir: OnAir | null }) {
 
 /**
  * The placements beyond the corner emblem, each its own OBS browser source.
- * The source name matters: `sponsifable log` finds each placement by it, which
+ * The source name matters: `sponsifer log` finds each placement by it, which
  * is how the delivery report can say how long each one was on air.
  */
 function OtherPlacements({ deal, served }: { deal: Deal; served: boolean }) {
@@ -244,7 +244,7 @@ function OnStream({ deal }: { deal: Deal }) {
       <div className="row" style={{ marginBottom: 8 }}>
         <Button
           disabled={!served}
-          title={served ? url : 'Needs `sponsifable serve`: OBS keeps its own browser storage, so the overlay reads the workspace file.'}
+          title={served ? url : 'Needs `sponsifer serve`: OBS keeps its own browser storage, so the overlay reads the workspace file.'}
           onClick={() => void copyText(url).then(setCopied)}
         >
           {copied ? 'Copied' : 'Copy OBS URL'}

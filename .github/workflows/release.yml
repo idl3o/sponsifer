@@ -1,4 +1,4 @@
-# Build, test and publish the `sponsifable` package with PyPI Trusted
+# Build, test and publish the `sponsifer` package with PyPI Trusted
 # Publishing: GitHub proves to PyPI, over OIDC, that this workflow in this
 # repository made the upload, so no API token exists to leak. PyPI attaches a
 # Sigstore-signed attestation to every file it receives this way.
@@ -46,7 +46,7 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v')
         run: |
           tag="${GITHUB_REF_NAME#v}"
-          py=$(python -c "import re,pathlib;print(re.search(r'__version__ = \"(.+)\"', pathlib.Path('python/sponsifable/__init__.py').read_text()).group(1))")
+          py=$(python -c "import re,pathlib;print(re.search(r'__version__ = \"(.+)\"', pathlib.Path('python/sponsifer/__init__.py').read_text()).group(1))")
           js=$(node -p "require('./package.json').version")
           echo "tag $tag, python $py, app $js"
           test "$tag" = "$py" && test "$tag" = "$js"
@@ -54,7 +54,7 @@ jobs:
       - run: python -m build
       - run: python -m twine check --strict dist/*
       - name: The wheel carries the app
-        run: python -m zipfile -l dist/*.whl | grep -q "sponsifable/web/index.html"
+        run: python -m zipfile -l dist/*.whl | grep -q "sponsifer/web/index.html"
 
       - uses: actions/upload-artifact@v4
         with:
@@ -66,7 +66,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: testpypi
-      url: https://test.pypi.org/p/sponsifable
+      url: https://test.pypi.org/p/sponsifer
     permissions:
       id-token: write
     steps:
@@ -86,7 +86,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: pypi
-      url: https://pypi.org/p/sponsifable
+      url: https://pypi.org/p/sponsifer
     permissions:
       id-token: write
     steps:

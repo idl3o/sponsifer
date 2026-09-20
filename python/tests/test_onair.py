@@ -10,8 +10,8 @@ from pathlib import Path
 
 import pytest
 
-from sponsifable import onair
-from sponsifable.obs import Obs
+from sponsifer import onair
+from sponsifer.obs import Obs
 
 
 class FakeObs:

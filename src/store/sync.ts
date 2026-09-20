@@ -80,7 +80,7 @@ export interface SyncEnv {
 }
 
 /** The localStorage key holding the revision this browser last read or wrote. */
-export const SEEN_KEY = 'sponsifable-sync-revision';
+export const SEEN_KEY = 'sponsifer-sync-revision';
 
 const SLICES = ['profile', 'terms', 'prospects', 'deals', 'board', 'emblem'] as const;
 
@@ -157,7 +157,7 @@ async function writeOnce(s: Session, replaceUnreadable: boolean): Promise<boolea
     case 'offline':
       status({
         mode: 'browser-only',
-        notice: 'The server stopped. Edits are kept in this browser, and reach the file when you restart `sponsifable serve` and reload.',
+        notice: 'The server stopped. Edits are kept in this browser, and reach the file when you restart `sponsifer serve` and reload.',
       });
       return false;
   }

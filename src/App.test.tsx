@@ -143,7 +143,7 @@ describe('App', () => {
     const { profile, terms, prospects } = useStore.getState();
     const old = { ...profile, name: 'Saved Before Deals Existed' };
     localStorage.setItem(
-      'sponsifable-v1',
+      'sponsifer-v1',
       JSON.stringify({ state: { profile: old, terms, prospects, seq: 140 }, version: 0 }),
     );
     await useStore.persist.rehydrate();
@@ -155,17 +155,17 @@ describe('App', () => {
 
   it('sets an unreadable save aside instead of discarding it', async () => {
     const corrupt = { state: { profile: { niche: 'astrology' }, prospects: [] }, version: 0 };
-    localStorage.setItem('sponsifable-v1', JSON.stringify(corrupt));
+    localStorage.setItem('sponsifer-v1', JSON.stringify(corrupt));
     await useStore.persist.rehydrate();
 
-    expect(localStorage.getItem('sponsifable-unreadable-v0')).toContain('astrology');
+    expect(localStorage.getItem('sponsifer-unreadable-v0')).toContain('astrology');
     expect(useStore.getState().profile.niche).not.toBe('astrology');
   });
 
   it('adopts a save written before the rename, so browser-only work is not stranded', async () => {
     const { profile, terms, prospects } = useStore.getState();
     const older = { ...profile, name: 'Saved Before The Rename' };
-    localStorage.removeItem('sponsifable-v1');
+    localStorage.removeItem('sponsifer-v1');
     localStorage.setItem(
       'sponsorable-v1',
       JSON.stringify({ state: { profile: older, terms, prospects, seq: 150 }, version: 4 }),
@@ -176,6 +176,21 @@ describe('App', () => {
     expect(useStore.getState().profile.name).toBe('Saved Before The Rename');
     // The old save is left where it is, rather than moved.
     expect(localStorage.getItem('sponsorable-v1')).toContain('Saved Before The Rename');
+  });
+
+  it('adopts the newest of two earlier names, because the product was renamed twice', async () => {
+    const { profile, terms, prospects } = useStore.getState();
+    const save = (name: string, seq: number): string =>
+      JSON.stringify({ state: { profile: { ...profile, name }, terms, prospects, seq }, version: 4 });
+    localStorage.removeItem('sponsifer-v1');
+    localStorage.setItem('sponsorable-v1', save('Saved Under The First Name', 150));
+    localStorage.setItem('sponsifable-v1', save('Saved Under The Second Name', 160));
+    adoptRenamedSave();
+    await useStore.persist.rehydrate();
+
+    expect(useStore.getState().profile.name).toBe('Saved Under The Second Name');
+    expect(localStorage.getItem('sponsifable-v1')).toContain('Saved Under The Second Name');
+    expect(localStorage.getItem('sponsorable-v1')).toContain('Saved Under The First Name');
   });
 
   it('shows what the on-air log says for a won deal when the server is serving', async () => {

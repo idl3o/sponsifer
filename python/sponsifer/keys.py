@@ -1,7 +1,7 @@
 """The creator's signing key, and a local certificate chain for C2PA.
 
 Receipts are signed with the creator's own SSH key through `ssh-keygen -Y
-sign`. Sponsifable never reads the private key: passphrases, ssh-agent and
+sign`. Sponsifer never reads the private key: passphrases, ssh-agent and
 hardware keys (`ed25519-sk`) are OpenSSH's business, which is where a key
 belongs. The public key is what goes into the receipt, its SHA256
 fingerprint goes into the contract, and a technical creator has usually
@@ -105,7 +105,7 @@ def _config_path(home: Path) -> Path:
 
 
 def configured_key(home: Path) -> Path | None:
-    """The key set with `sponsifable key --ssh`, else ~/.ssh/id_ed25519 if it exists."""
+    """The key set with `sponsifer key --ssh`, else ~/.ssh/id_ed25519 if it exists."""
     config = _config_path(home)
     if config.exists():
         path = json.loads(config.read_text(encoding="utf-8")).get("sshKey")
@@ -129,7 +129,7 @@ def signer_for(home: Path) -> SshKeygenSigner:
     if key is None:
         raise NoKey(
             "no SSH key to sign receipts with. Make one with `ssh-keygen -t ed25519` "
-            "(or `-t ed25519-sk` for a hardware key), then run `sponsifable key --ssh ~/.ssh/id_ed25519`"
+            "(or `-t ed25519-sk` for a hardware key), then run `sponsifer key --ssh ~/.ssh/id_ed25519`"
         )
     return SshKeygenSigner(key)
 

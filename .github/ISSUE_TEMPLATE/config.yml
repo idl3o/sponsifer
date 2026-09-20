@@ -1,7 +1,7 @@
 blank_issues_enabled: true
 contact_links:
   - name: Disagree with a price the tool produced
-    url: https://github.com/idl3o/sponsifable/blob/main/CONTRIBUTING.md
+    url: https://github.com/idl3o/sponsifer/blob/main/CONTRIBUTING.md
     about: >
       Open a normal issue with the profile that produced it and the number you expected.
       Arguing that a band is wrong is a contribution, not a complaint.

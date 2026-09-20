@@ -76,7 +76,7 @@ function SyncLine() {
       {mode === 'browser-only' && (
         <span
           className="pill"
-          title="Run `sponsifable serve` and reload to keep the workspace in a file that OBS and the CLI can read."
+          title="Run `sponsifer serve` and reload to keep the workspace in a file that OBS and the CLI can read."
         >
           Saved in this browser only
         </span>
@@ -113,7 +113,7 @@ function DataControls() {
     <div className="row no-print" style={{ gap: 6 }}>
       <SyncLine />
       {problem && <Pill tone="bad">{problem}</Pill>}
-      <Button onClick={() => downloadJson('sponsifable.json', workspaceOf(workspace))} title="Save everything to a file">
+      <Button onClick={() => downloadJson('sponsifer.json', workspaceOf(workspace))} title="Save everything to a file">
         Export
       </Button>
       <Button onClick={() => fileRef.current?.click()}>Import</Button>

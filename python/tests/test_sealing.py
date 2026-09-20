@@ -16,10 +16,10 @@ import pytest
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from PIL import Image, ImageDraw
 
-from sponsifable import ledger, manifest, sealing
-from sponsifable.keys import Ed25519Signer
-from sponsifable.timestamp import Stamp
-from sponsifable.verifying import record_sighting, verify
+from sponsifer import ledger, manifest, sealing
+from sponsifer.keys import Ed25519Signer
+from sponsifer.timestamp import Stamp
+from sponsifer.verifying import record_sighting, verify
 
 PREAMBLE = "10110010"
 SEALED_AT = datetime(2026, 9, 10, 12, 0, tzinfo=timezone.utc)
@@ -60,7 +60,7 @@ def setup(tmp_path: Path):
         "terms": {"usageRights": "whitelisting-30", "exclusivityDays": 0, "revisions": 1, "rush": False, "bundleSize": 1},
         "paidUsageDays": 30, "deliveredOn": "", "paidOn": "", "seal": None, "sightings": [], "notes": "",
     }
-    ws = tmp_path / "sponsifable.json"
+    ws = tmp_path / "sponsifer.json"
     ws.write_text(json.dumps({"version": 2, "profile": {"name": "Ada Trelawny"}, "deals": [deal]}), encoding="utf-8")
     home = tmp_path / "home"
     counter = iter(range(1, 1000))
@@ -159,7 +159,7 @@ def test_the_sponsor_can_verify_the_receipt_with_openssh_alone(setup):
     signers_line = notice[notice.index("To check the signature with nothing but OpenSSH, save this line as allowed_signers:") + 1]
     (folder / "allowed_signers").write_text(signers_line.strip() + "\n", encoding="ascii")
     result = subprocess.run(
-        ["ssh-keygen", "-Y", "verify", "-f", "allowed_signers", "-I", "ada-trelawny", "-n", "sponsifable-receipt",
+        ["ssh-keygen", "-Y", "verify", "-f", "allowed_signers", "-I", "ada-trelawny", "-n", "sponsifer-receipt",
          "-s", f"{serial}.receipt.json.sig"],
         input=(folder / f"{serial}.receipt.json").read_bytes(), capture_output=True, cwd=folder,
     )

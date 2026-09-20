@@ -26,7 +26,7 @@ Collabstr's marketplace data is the only dataset found with a stated sample, exp
 
 The caveat matters: Collabstr is a self-serve gig marketplace, its deliverable is a sponsored post rather than a live sponsored segment, and it holds roughly fifteen times more YouTube deals than Twitch ones. **$165 is not the price of a sponsored hour.** What it is good evidence for is the shape of the market: small deals, and a far wider gap between ask and settlement on Twitch than on YouTube.
 
-That gap is the opposite of the reassurance a rate-card tool usually offers. A creator told to ask £400 should know the median Twitch ask is discounted by about two thirds before money moves. Sponsifable's own walk-away price exists for exactly this, and this is the first external evidence that the walk-away number, not the ask, is where a Twitch negotiation lands.
+That gap is the opposite of the reassurance a rate-card tool usually offers. A creator told to ask £400 should know the median Twitch ask is discounted by about two thirds before money moves. Sponsifer's own walk-away price exists for exactly this, and this is the first external evidence that the walk-away number, not the ask, is where a Twitch negotiation lands.
 
 ## The $1 per concurrent viewer per hour rule
 
@@ -39,7 +39,7 @@ The most-repeated number in live-stream sponsorship, and its provenance does not
 
 **And the corpus contradicts itself by two orders of magnitude.** Against $1 per CCV per hour, one cluster of guides quotes **$0.01–0.05 per viewer per hour**, and another **$10–25 per thousand average viewers** for a sponsored segment. The first is $1,000 per thousand concurrent viewers per hour; the others are $10–50. These are not variations, they are incompatible pricing worlds, and no source reconciles them. Averaging is not available.
 
-**Where Sponsifable sits, and why that is reassuring.** The engine prices a Twitch stream segment at a **£12 CPM on concurrent viewers**. That is squarely inside the $10–25 per thousand cluster (£7.50–19), and about sixty times below the $1-per-CCV folklore. The engine is consistent with the half of the literature that has any arithmetic behind it, and inconsistent with the half that admits to being generated. No change is warranted; the coincidence is worth recording so the next person to find the $1 rule knows it was considered and declined.
+**Where Sponsifer sits, and why that is reassuring.** The engine prices a Twitch stream segment at a **£12 CPM on concurrent viewers**. That is squarely inside the $10–25 per thousand cluster (£7.50–19), and about sixty times below the $1-per-CCV folklore. The engine is consistent with the half of the literature that has any arithmetic behind it, and inconsistent with the half that admits to being generated. No change is warranted; the coincidence is worth recording so the next person to find the $1 rule knows it was considered and declined.
 
 **Second cross-check.** The production floor for a stream segment is **£120**. Collabstr's average completed Twitch deal is **$165.70, about £125**. A floor derived from the hours the work costs lands within a few pounds of the observed average transaction, from an unrelated source and a different method. That is the strongest evidence the floor has ever had.
 

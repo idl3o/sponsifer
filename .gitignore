@@ -10,5 +10,5 @@ playtest-shots
 __pycache__
 .pytest_cache
 *.egg-info
-/python/sponsifable/web
+/python/sponsifer/web
 /python/dist

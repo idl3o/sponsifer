@@ -8,8 +8,8 @@ from pathlib import Path
 import pytest
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
-from sponsifable import onair, receipt, report, sshsig
-from sponsifable.keys import Ed25519Signer, allowed_signers_line
+from sponsifer import onair, receipt, report, sshsig
+from sponsifer.keys import Ed25519Signer, allowed_signers_line
 
 DEAL = {"id": "dl-104", "brand": "Hetzner", "outcome": "won", "platform": "twitch", "format": "stream",
         "agreed": 400, "quoted": 450}
@@ -124,7 +124,7 @@ def test_the_notice_says_when_offsets_are_unknown():
 def test_the_notice_tells_the_sponsor_how_to_verify_without_this_software():
     text = notice_for(build())
     assert f"-n {report.NAMESPACE}" in text
-    assert 'namespaces="sponsifable-delivery"' in text
+    assert 'namespaces="sponsifer-delivery"' in text
     assert "ssh-keygen -Y verify" in text
 
 

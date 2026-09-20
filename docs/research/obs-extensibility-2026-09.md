@@ -76,9 +76,9 @@ The report is signed like the existing receipts, with the creator's SSH key, and
 3. **The workspace file becomes the source of truth.** OBS's embedded browser keeps its own storage, apart from the streamer's browser. The overlay, the dock, the web app and the CLI can only agree through a file the local server owns. The server therefore gains a small read-only JSON interface for the overlay, and a write path for the app. This is the restructure the pivot already named.
 4. **The evaluator and the deal panel come later, as a custom dock** showing the same app.
 
-Status on 2026-09-12: the third item is built. The server owns `~/.sponsifable/workspace.json` and serves it at `/api/workspace`, with compare-and-swap writes. The first item is built in part: `/overlay.html?deal=<id>` draws the disclosure and the sponsor's name for a won deal, with no sponsor asset yet.
+Status on 2026-09-12: the third item is built. The server owns `~/.sponsifer/workspace.json` and serves it at `/api/workspace`, with compare-and-swap writes. The first item is built in part: `/overlay.html?deal=<id>` draws the disclosure and the sponsor's name for a won deal, with no sponsor asset yet.
 
-The second is built as `sponsifable log <deal>`, in `python/sponsifable/onair.py`, and tested against a fake OBS that can drop an activation signal the way studio mode did. It has **not** been run against real OBS: the probe's question is still open, which is why the poll carries the log and the events are only prompts. Starting it from the app, and the signed delivery report that reads its output, come next.
+The second is built as `sponsifer log <deal>`, in `python/sponsifer/onair.py`, and tested against a fake OBS that can drop an activation signal the way studio mode did. It has **not** been run against real OBS: the probe's question is still open, which is why the poll carries the log and the events are only prompts. Starting it from the app, and the signed delivery report that reads its output, come next.
 
 ## Decisions this forces
 

@@ -27,7 +27,7 @@ import type {
  * shared benchmarks.
  */
 
-export const REPO_URL = 'https://github.com/idl3o/sponsifable';
+export const REPO_URL = 'https://github.com/idl3o/sponsifer';
 
 /** A tier's paid-usage window as JSON can carry it: null for unlimited. */
 export function paidDaysFor(usageRights: UsageRights): number | null {

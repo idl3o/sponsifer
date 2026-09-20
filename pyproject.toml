@@ -3,15 +3,15 @@ requires = ["hatchling>=1.27"]
 build-backend = "hatchling.build"
 
 [project]
-name = "sponsifable"
+name = "sponsifer"
 dynamic = ["version"]
-description = "Price, prove and pitch a creator sponsorship, and seal what you deliver. Local-first, no account, no telemetry."
+description = "Price a sponsorship and defend the number, put the sponsor on stream through OBS, sign a report of when it was on air, and seal what you deliver. Local-first, no account, no telemetry."
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
 authors = [{ name = "Sam Lavington" }]
 requires-python = ">=3.10"
-keywords = ["creator-economy", "sponsorship", "rate-card", "media-kit", "c2pa", "watermark", "local-first"]
+keywords = ["creator-economy", "sponsorship", "rate-card", "media-kit", "obs", "twitch", "streaming", "c2pa", "watermark", "local-first"]
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Environment :: Console",
@@ -41,27 +41,27 @@ seal = ["trustmark>=0.9.2"]
 dev = ["pytest>=8", "markdown>=3.5"]
 
 [project.scripts]
-sponsifable = "sponsifable.cli:main"
+sponsifer = "sponsifer.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/idl3o/sponsifable"
-Documentation = "https://github.com/idl3o/sponsifable/blob/main/docs/provenance.md"
-Issues = "https://github.com/idl3o/sponsifable/issues"
-Source = "https://github.com/idl3o/sponsifable"
+Homepage = "https://github.com/idl3o/sponsifer"
+Documentation = "https://github.com/idl3o/sponsifer/blob/main/docs/provenance.md"
+Issues = "https://github.com/idl3o/sponsifer/issues"
+Source = "https://github.com/idl3o/sponsifer"
 
-# One version, in one place: the tag, the package and `sponsifable --version`
+# One version, in one place: the tag, the package and `sponsifer --version`
 # cannot disagree. The release workflow refuses a tag that does not match.
 [tool.hatch.version]
-path = "python/sponsifable/__init__.py"
+path = "python/sponsifer/__init__.py"
 
 [tool.hatch.build.targets.wheel]
-packages = ["python/sponsifable"]
+packages = ["python/sponsifer"]
 # The built web app is gitignored, so it has to be named to be included.
-artifacts = ["python/sponsifable/web/**"]
+artifacts = ["python/sponsifer/web/**"]
 
 [tool.hatch.build.targets.sdist]
-include = ["python/sponsifable", "python/tests", "README.md", "LICENSE"]
-artifacts = ["python/sponsifable/web/**"]
+include = ["python/sponsifer", "python/tests", "README.md", "LICENSE"]
+artifacts = ["python/sponsifer/web/**"]
 
 [tool.pytest.ini_options]
 testpaths = ["python/tests"]

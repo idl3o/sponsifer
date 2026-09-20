@@ -48,7 +48,7 @@ export type PlacementKind = 'emblem' | 'lower-third' | 'slate' | 'card';
 export interface Placement {
   value: PlacementKind;
   label: string;
-  /** The name to give the browser source in OBS. `sponsifable log` watches these names. */
+  /** The name to give the browser source in OBS. `sponsifer log` watches these names. */
   sourceName: string;
   hint: string;
 }

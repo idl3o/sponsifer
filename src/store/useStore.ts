@@ -98,7 +98,7 @@ function migrate(persisted: unknown, version: number): Persisted {
     return { profile, terms, prospects, deals, board, emblem, seq: typeof seq === 'number' ? seq : 100 };
   }
   try {
-    localStorage.setItem(`sponsifable-unreadable-v${version}`, JSON.stringify(persisted));
+    localStorage.setItem(`sponsifer-unreadable-v${version}`, JSON.stringify(persisted));
   } catch {
     // Storage full or blocked. Nothing more can be done from here.
   }
@@ -107,22 +107,27 @@ function migrate(persisted: unknown, version: number): Persisted {
 }
 
 /** Where this browser keeps its copy. */
-export const SAVE_KEY = 'sponsifable-v1';
-/** What that key was called before the product was renamed, in September 2026. */
-const RENAMED_FROM = 'sponsorable-v1';
+export const SAVE_KEY = 'sponsifer-v1';
+/** What that key was called before each rename of September 2026, newest first. */
+const RENAMED_FROM = ['sponsifable-v1', 'sponsorable-v1'] as const;
 
 /**
- * Carry a save written before the rename across to the new key, once.
+ * Carry a save written before a rename across to the new key, once.
  *
  * The workspace file is the source of truth, but a creator who has only ever
  * run `npm run dev` has their work in this browser and nowhere else. Renaming
- * the key without this would strand it. The old key is left where it is.
+ * the key without this would strand it. Where both earlier names hold a save,
+ * the later name's is the later work. The old keys are left where they are.
  */
 export function adoptRenamedSave(): void {
   try {
-    const existing = localStorage.getItem(SAVE_KEY);
-    const older = localStorage.getItem(RENAMED_FROM);
-    if (existing === null && older !== null) localStorage.setItem(SAVE_KEY, older);
+    if (localStorage.getItem(SAVE_KEY) !== null) return;
+    for (const key of RENAMED_FROM) {
+      const older = localStorage.getItem(key);
+      if (older === null) continue;
+      localStorage.setItem(SAVE_KEY, older);
+      return;
+    }
   } catch {
     // Storage blocked. The app starts from the sample, as it would have anyway.
   }
@@ -307,7 +312,7 @@ function workspaceActions(set: SetState): Pick<Actions, 'setTab' | 'importAll' |
 /**
  * Application state.
  *
- * The workspace file that `sponsifable serve` owns is the source of truth, and
+ * The workspace file that `sponsifer serve` owns is the source of truth, and
  * `sync.ts` keeps this store and the file in step. This browser's copy is a
  * cache, and the whole save when the app runs without the server.
  *
@@ -338,7 +343,7 @@ export const useStore = create<State & Actions>()(
     {
       // The format is tracked by `version`, and `migrate` upgrades anything
       // older. The key was renamed with the product; `adoptRenamedSave` carries
-      // a save written under the old name across, once.
+      // a save written under an earlier name across, once.
       name: SAVE_KEY,
       version: WORKSPACE_VERSION,
       migrate: (persisted, version) => migrate(persisted, version) as State & Actions,

@@ -276,4 +276,4 @@ Many creators this tool is built for already run a Lightning node, and some spon
 
 ---
 
-Released under the MIT licence. Source: github.com/idl3o/sponsifable. The figures in this paper are those of the repository in September 2026.
+Released under the MIT licence. Source: github.com/idl3o/sponsifer. The figures in this paper are those of the repository in September 2026.

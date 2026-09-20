@@ -17,9 +17,9 @@ from typing import Any, Iterator
 
 
 def home_dir() -> Path:
-    """Where keys and the ledger live: $SPONSIFABLE_HOME, or ~/.sponsifable."""
-    override = os.environ.get("SPONSIFABLE_HOME")
-    return Path(override) if override else Path.home() / ".sponsifable"
+    """Where keys and the ledger live: $SPONSIFER_HOME, or ~/.sponsifer."""
+    override = os.environ.get("SPONSIFER_HOME")
+    return Path(override) if override else Path.home() / ".sponsifer"
 
 
 def ledger_dir(home: Path) -> Path:

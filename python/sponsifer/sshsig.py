@@ -26,7 +26,7 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey,
 
 #: Every receipt signature is made in this namespace, so a signature over a
 #: receipt can never be replayed as a signature over anything else.
-NAMESPACE = "sponsifable-receipt"
+NAMESPACE = "sponsifer-receipt"
 
 _MAGIC = b"SSHSIG"
 _VERSION = 1

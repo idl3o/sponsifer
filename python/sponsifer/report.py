@@ -21,7 +21,7 @@ What the report is and is not:
 - It **carries no price**. The CLI does not price, and a delivery record is
   not an invoice.
 
-It is signed under its own SSHSIG namespace, `sponsifable-delivery`, distinct
+It is signed under its own SSHSIG namespace, `sponsifer-delivery`, distinct
 from the receipts', so a signature over a report can never be presented as a
 signature over a licence, or the reverse.
 """
@@ -39,7 +39,7 @@ from .brand import PRODUCT
 #: 2: one report covers every placement, each with its own total.
 REPORT_VERSION = 2
 #: The SSHSIG namespace for delivery reports. Receipts have their own.
-NAMESPACE = "sponsifable-delivery"
+NAMESPACE = "sponsifer-delivery"
 #: Reports live beside the ledger and the on-air logs.
 REPORTS_DIR = "reports"
 

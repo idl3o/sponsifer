@@ -4,7 +4,7 @@ from datetime import date
 
 import pytest
 
-from sponsifable import receipt
+from sponsifer import receipt
 
 DEAL = {
     "id": "dl-104",
@@ -120,7 +120,7 @@ def notice():
     return receipt.sponsor_notice(
         build(),
         fingerprint="SHA256:abc",
-        allowed_signers='ada-trelawny namespaces="sponsifable-receipt" ssh-ed25519 AAAA',
+        allowed_signers='ada-trelawny namespaces="sponsifer-receipt" ssh-ed25519 AAAA',
         identity="ada-trelawny",
         timestamped_at="2026-09-10T12:00:00+00:00",
     )
@@ -135,5 +135,5 @@ def test_the_sponsor_is_told_the_file_is_marked():
 
 def test_the_sponsor_is_told_how_to_verify_without_this_software():
     text = notice()
-    assert "ssh-keygen -Y verify -f allowed_signers -I ada-trelawny -n sponsifable-receipt" in text
+    assert "ssh-keygen -Y verify -f allowed_signers -I ada-trelawny -n sponsifer-receipt" in text
     assert "SHA256:abc" in text

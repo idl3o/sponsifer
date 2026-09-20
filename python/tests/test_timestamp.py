@@ -12,7 +12,7 @@ timestamp covers.
 import hashlib
 from pathlib import Path
 
-from sponsifable.timestamp import Stamp, token_digest, token_time, token_valid
+from sponsifer.timestamp import Stamp, token_digest, token_time, token_valid
 
 TOKEN = (Path(__file__).parent / "fixtures" / "digicert-probe.tsr").read_bytes()
 DIGEST = hashlib.sha256(b"sponsorable api probe").digest()

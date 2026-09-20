@@ -79,5 +79,5 @@ export function placementSentence(summary: OnAirSummary): string {
 /** The report to send, or what to run to make one. */
 export function reportSentence(summary: OnAirSummary, dealId: string): string {
   const latest = summary.reports[summary.reports.length - 1];
-  return latest ? `Signed report: ${latest}` : `No signed report yet. Run \`sponsifable report ${dealId}\`.`;
+  return latest ? `Signed report: ${latest}` : `No signed report yet. Run \`sponsifer report ${dealId}\`.`;
 }

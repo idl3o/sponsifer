@@ -199,7 +199,7 @@ def run_config(model: str, schema: int, corpus: list[Image.Image]) -> tuple[dict
     False positives are counted two ways. TrustMark's decoder auto-detects the
     error-correction schema, and a clean image will sometimes pass as one of the
     weaker schemas. Accepting only the schema that was embedded removes them,
-    which is why `sponsifable verify` decodes strictly.
+    which is why `sponsifer verify` decodes strictly.
     """
     from trustmark import TrustMark
 

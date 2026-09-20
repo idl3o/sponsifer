@@ -24,7 +24,7 @@ SOURCE_TYPES = {
 def licence_manifest(terms: dict[str, Any], *, title: str, source: str, version: str) -> dict[str, Any]:
     """The manifest JSON: who made it, how, that it is watermarked, and the licence."""
     return {
-        "claim_generator_info": [{"name": "sponsifable", "version": version}],
+        "claim_generator_info": [{"name": "sponsifer", "version": version}],
         "title": title,
         "assertions": [
             {
@@ -36,7 +36,7 @@ def licence_manifest(terms: dict[str, Any], *, title: str, source: str, version:
                     ]
                 },
             },
-            {"label": "org.sponsifable.licence", "data": terms},
+            {"label": "org.sponsifer.licence", "data": terms},
         ],
     }
 
@@ -61,4 +61,4 @@ def read_licence(path: Path) -> dict[str, Any] | None:
     except Exception:  # noqa: BLE001 - no manifest, or an unreadable one
         return None
     active = data.get("manifests", {}).get(data.get("active_manifest", ""), {})
-    return next((a["data"] for a in active.get("assertions", []) if a.get("label") == "org.sponsifable.licence"), None)
+    return next((a["data"] for a in active.get("assertions", []) if a.get("label") == "org.sponsifer.licence"), None)

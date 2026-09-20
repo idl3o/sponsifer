@@ -12,7 +12,7 @@ Smith, *Influencer Dynamics*, working paper, 29 April 2026. The figures below we
 - The coefficient is **0.489** (s.e. 0.006), with R² 0.33. It rises to 0.509 on Instagram followers alone.
 - Predicted pay is **$145 per deliverable at 10,000 followers**, and **$448 at 100,000**.
 
-Pay grows roughly with the square root of audience: doubling followers raises pay by about 40%. Sponsifable's media value is linear in views, and the production floor flattens it at the bottom. The paid market is a smooth concave curve. Follower count explains about a third of the variation, so this is a reference line, not a price.
+Pay grows roughly with the square root of audience: doubling followers raises pay by about 40%. Sponsifer's media value is linear in views, and the production floor flattens it at the bottom. The paid market is a smooth concave curve. Follower count explains about a third of the variation, so this is a reference line, not a price.
 
 This data is mostly Instagram and TikTok deliverables. It does not validate YouTube, newsletter or podcast pricing.
 

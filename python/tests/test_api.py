@@ -9,8 +9,8 @@ from pathlib import Path
 
 import pytest
 
-from sponsifable import api, workspace
-from sponsifable.serve import make_server
+from sponsifer import api, workspace
+from sponsifer.serve import make_server
 
 PORT = 5180
 ORIGIN = f"http://127.0.0.1:{PORT}"
@@ -175,7 +175,7 @@ def test_the_on_air_view_says_when_there_is_no_log(ctx):
 
 
 def test_the_on_air_view_folds_the_log_and_lists_the_reports(tmp_path: Path):
-    from sponsifable import onair, report
+    from sponsifer import onair, report
     ctx = api.Context(tmp_path / "workspace.json", PORT, home=tmp_path)
     log = onair.log_path(tmp_path, "dl-104")
     onair.append(log, {"kind": "stream", "at": "2026-09-18T20:00:00.000+00:00", "live": True, "startObserved": True})
