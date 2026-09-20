@@ -41,7 +41,7 @@ The GitHub repository was renamed to `idl3o/sponsifer` on 20 September 2026, and
 ## Still to do
 
 - **Reserve `sponsifer`** on PyPI and TestPyPI before the first release, and set up trusted publishing for it (see `docs/RELEASING.md`).
-- **Search the trademark registers**, which no script reached: the UK IPO, EUIPO and USPTO, for SPONSIFER, SPONSIFIER, SPONSAFIER and SPONSIFI.
+- **Search the remaining trademark registers**, which no script reached: EUIPO and the USPTO for SPONSIFER, and all three registers for the neighbours SPONSIFIER, SPONSAFIER and SPONSIFI.
 
 ## Names checked and rejected
 
@@ -60,7 +60,7 @@ The GitHub repository was renamed to `idl3o/sponsifer` on 20 September 2026, and
 
 ## What Sponsifer was checked against
 
-On 20 September 2026. Clean on every register that answers a script; two near neighbours hold rights; the trademark registers were not reached. The author chose the name knowing all three. The word reads as *spons-*, the pledge, and *-fer*, bearing.
+On 20 September 2026. Clean on every register that answers a script; two near neighbours hold rights; no script reached the trademark registers. The author chose the name knowing all three, and the same day checked the UK trademark register by hand and found the name available. That is the check that matters legally at home; it says nothing about EUIPO or the USPTO, and availability does not settle a likelihood-of-confusion objection from either neighbour below. The word reads as *spons-*, the pledge, and *-fer*, bearing.
 
 - Free on PyPI, TestPyPI, npm and crates.io. No GitHub account, and GitHub's repository and user search return nothing. Companies House returns no results. A web search finds no company or product.
 - sponsifer.com, .net, .org, .io, .app, .dev, .ai, .co and .co.uk were unregistered by RDAP, which is a stronger check than a name failing to resolve.

@@ -9,7 +9,7 @@ description = "Price a sponsorship and defend the number, put the sponsor on str
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
-authors = [{ name = "Sam Lavington" }]
+authors = [{ name = "S. Lavi" }]
 requires-python = ">=3.10"
 keywords = ["creator-economy", "sponsorship", "rate-card", "media-kit", "obs", "twitch", "streaming", "c2pa", "watermark", "local-first"]
 classifiers = [

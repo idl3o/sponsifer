@@ -2,7 +2,7 @@
 
 *Pricing, proving and settling a creator sponsorship on one machine*
 
-Sam Lavington · September 2026 · Working draft
+S. Lavi · September 2026 · Working draft
 
 ## Abstract
 
