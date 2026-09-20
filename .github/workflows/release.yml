@@ -51,15 +51,17 @@ jobs:
           echo "tag $tag, python $py, app $js"
           test "$tag" = "$py" && test "$tag" = "$js"
 
-      - run: python -m build
-      - run: python -m twine check --strict dist/*
+      # `npm run bundle` left the web build in dist/, so the Python build gets a
+      # directory of its own: twine refuses anything there that is not a package.
+      - run: python -m build --outdir python/dist
+      - run: python -m twine check --strict python/dist/*
       - name: The wheel carries the app
-        run: python -m zipfile -l dist/*.whl | grep -q "sponsifer/web/index.html"
+        run: python -m zipfile -l python/dist/*.whl | grep -q "sponsifer/web/index.html"
 
       - uses: actions/upload-artifact@v4
         with:
           name: dist
-          path: dist/
+          path: python/dist/
 
   testpypi:
     needs: build
