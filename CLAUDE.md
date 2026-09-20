@@ -84,6 +84,29 @@
 - **Each kind has a conventional OBS source name, in two places on purpose:** `PLACEMENTS` in `src/domain/emblem.ts`, shown beside the address to paste, and `CONVENTIONAL_SOURCES` in `python/sponsifer/onair.py`, which the logger watches. Change one and change the other; the log finds a placement by its name and by nothing else.
 - **`bareLogo` is the corner emblem's alone.** A band, a slate or a card with no words says nothing, so they always carry the line.
 
+## Publishing (agreed 2026-09-20)
+
+Sam delegated the publishing regime to Claude on 2026-09-20, `main` included. This section is the delegation, because a session starts cold and a rule that is only remembered does not exist.
+
+**Claude does these without asking, and reports after:**
+
+- commits, feature branches, and pushing them;
+- merging to `main` and pushing `main`, when all three hold: the work is something Sam asked for, `npm run check` is green locally, and the merge is a fast-forward. Never a force-push, never `--no-verify`;
+- watching CI after every push, and fixing what it finds;
+- TestPyPI rehearsals, always with a development version (`X.Y.Z.devN`) from a throwaway branch, never with a release number: a TestPyPI version cannot be uploaded twice and the workflow has `skip-existing`, so a release number used early makes the real rehearsal install a stale file without saying so;
+- keeping the record straight: `docs/rename.md`, the plans, the README's and `CONTRIBUTING.md`'s test counts.
+
+**These stay Sam's, whatever else is delegated. Prepare everything up to the last step, then stop:**
+
+- a release to PyPI. It is permanent. Sam is the required reviewer on the `pypi` environment; do not change that environment's protection;
+- repository settings, renames, visibility, and deleting anything unmerged;
+- marking an archive paper published, after which edits become errata;
+- anything legal, anything sent to a sponsor, anything that costs money.
+
+**Before every push:** `npm run check`; `git config user.email` is `sjlavieth@gmail.com`; nothing secret is staged; public names read "S. Lavi"; British English. After it: watch the run, and say what it did.
+
+**Why the gates matter here more than usual.** Claude writes the code and publishes it, so there is no second reader. On the day this was agreed, a search and replace falsified a line of history and was caught later by luck, the release workflow's one bug was found only by running it, and a save race was found only in a real browser. Run the thing; do not reason that it works.
+
 ## Gotchas already resolved — do not regress
 
 - `tsconfig` runs `exactOptionalPropertyTypes` and `noUncheckedIndexedAccess`. Optional props are spread conditionally (`{...(hint ? { hint } : {})}`) rather than passed as `undefined`. Array indexing needs a guard.

@@ -117,6 +117,7 @@ For development:
 ```bash
 npm run dev        # http://localhost:5180, saving in the browser only
 npm run dev:api    # beside it: the workspace server, so the app saves to the file
+npm run check      # every gate at once: typecheck, lint, vitest and pytest. Run before any push
 npm test           # 230 tests, including the calibration sweep
 npm run typecheck
 npm run lint       # includes the house rules: no function over 50 lines
