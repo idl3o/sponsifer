@@ -56,7 +56,7 @@ Built on `feat/placements` and merged on 20 September 2026: a lower third, a seg
 Still owed, in the order they should be taken:
 
 - **The remaining probe passes** — eye toggle, nested scene, studio mode, source reload — and a test stream, so the logger's riskiest assumption is tested rather than designed around. Only Sam can run these.
-- **Starting and stopping the logger from the app**, so there is no second terminal. Needs process management in the server, and a decision on where the OBS password lives when authentication is on.
+- ~~Starting and stopping the logger from the app.~~ Built on 20 September 2026 (`python/sponsifer/runner.py`, `src/components/LoggerControl.tsx`). It is a thread of the server rather than a second process, one logger at a time. The password decision: asked in the app when OBS asks for it, sent once to the server on this machine, used for the handshake and not kept anywhere. Run end to end against a stand-in OBS over a real socket; not yet against OBS itself, which belongs with the probe passes above.
 - **The deal panel as an OBS dock.**
 - **The first PyPI release.** Both publishers are registered under `sponsifer`, the release workflow's first runs found and fixed its one bug (5a88ba1), and TestPyPI holds `0.2.0.dev0` since 20 September 2026. What remains is the release itself, per `docs/RELEASING.md`: a rehearsal of the real version on TestPyPI, a `v*` tag, and the approval. Until then the name on PyPI is open to anyone.
 - **Payment**, shelved on `sandbox/lightning`.

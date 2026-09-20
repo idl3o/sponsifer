@@ -9,6 +9,8 @@ from pathlib import Path
 
 import pytest
 
+from test_runner import FakeSocket, runner_for
+
 from sponsifer import api, workspace
 from sponsifer.serve import make_server
 
@@ -196,6 +198,100 @@ def test_the_on_air_view_refuses_anything_that_is_not_a_deal_id(ctx, bad):
     response = get(ctx, f"/api/onair/{bad}")
     assert response.status in (400, 404)
     assert not ctx.workspace.exists()
+
+
+# The on-air logger, started and stopped from the app
+
+
+def logger_ctx(tmp_path: Path, socket, deals=None) -> api.Context:
+    path = tmp_path / "workspace.json"
+    won = [{"id": "dl-104", "outcome": "won"}, {"id": "dl-200", "outcome": "won"}, {"id": "dl-300", "outcome": "lost"}]
+    workspace.save(path, ws(deals=won if deals is None else deals), expected=workspace.ABSENT)
+    return api.Context(path, PORT, runner=runner_for(tmp_path, socket))
+
+
+def post(ctx, action, data=None, **headers):
+    base = {"Host": f"127.0.0.1:{PORT}", "Origin": ORIGIN, "Content-Type": "application/json"}
+    return api.handle("POST", f"/api/logger/{action}", {**base, **headers}, json.dumps(data or {}).encode(), ctx)
+
+
+def body(response):
+    return json.loads(response.body)
+
+
+def test_the_logger_starts_for_a_won_deal_reports_itself_and_stops(tmp_path: Path):
+    ctx = logger_ctx(tmp_path, FakeSocket())
+    assert body(get(ctx, "/api/logger"))["running"] is False
+    started = post(ctx, "start", {"deal": "dl-104"})
+    assert started.status == 200 and body(started)["running"] is True
+    assert body(get(ctx, "/api/logger"))["deal"] == "dl-104"
+    assert body(post(ctx, "stop"))["running"] is False
+
+
+@pytest.mark.parametrize("action", ["start", "stop"])
+@pytest.mark.parametrize("origin", ["https://evil.example", "null", ""])
+def test_a_foreign_page_can_neither_start_nor_stop_the_logger(tmp_path: Path, action, origin):
+    ctx = logger_ctx(tmp_path, FakeSocket())
+    post(ctx, "start", {"deal": "dl-104"})
+    assert post(ctx, action, {"deal": "dl-200"}, Origin=origin).status == 403
+    status = body(get(ctx, "/api/logger"))
+    assert status["running"] is True and status["deal"] == "dl-104", "the creator's evidence was not switched off"
+    post(ctx, "stop")
+
+
+def test_a_form_post_cannot_stop_the_logger(tmp_path: Path):
+    ctx = logger_ctx(tmp_path, FakeSocket())
+    post(ctx, "start", {"deal": "dl-104"})
+    assert post(ctx, "stop", **{"Content-Type": "text/plain"}).status == 415
+    assert body(get(ctx, "/api/logger"))["running"] is True
+    post(ctx, "stop")
+
+
+def test_the_logger_answers_only_to_this_host(tmp_path: Path):
+    ctx = logger_ctx(tmp_path, FakeSocket())
+    assert post(ctx, "start", {"deal": "dl-104"}, Host="rebound.example").status == 403
+    assert api.handle("GET", "/api/logger", {"Host": "rebound.example"}, b"", ctx).status == 403
+
+
+@pytest.mark.parametrize("deal, status", [("dl-999", 404), ("dl-300", 409), ("../../etc/passwd", 400), (None, 400), (7, 400)])
+def test_only_a_won_deal_in_the_workspace_can_be_logged(tmp_path: Path, deal, status):
+    ctx = logger_ctx(tmp_path, FakeSocket())
+    assert post(ctx, "start", {"deal": deal}).status == status
+    assert body(get(ctx, "/api/logger"))["running"] is False
+    assert not (tmp_path / "onair").exists()
+
+
+def test_a_deal_recorded_seconds_ago_may_not_be_in_the_file_yet_and_the_refusal_says_so(tmp_path: Path):
+    # Found in a real browser: the app saves a moment after an edit, and Start was pressed inside that moment.
+    refused = post(logger_ctx(tmp_path, FakeSocket(), deals=[]), "start", {"deal": "dl-104"})
+    assert refused.status == 404
+    assert "still being saved" in body(refused)["error"] and "try again" in body(refused)["error"]
+
+
+def test_a_second_deal_is_refused_while_one_is_logging_and_the_same_deal_is_not_an_error(tmp_path: Path):
+    ctx = logger_ctx(tmp_path, FakeSocket())
+    post(ctx, "start", {"deal": "dl-104"})
+    other = post(ctx, "start", {"deal": "dl-200"})
+    assert other.status == 409 and body(other)["deal"] == "dl-104"
+    assert post(ctx, "start", {"deal": "dl-104"}).status == 200
+    post(ctx, "stop")
+
+
+def test_obs_asking_for_a_password_is_passed_on_and_the_password_is_never_echoed(tmp_path: Path):
+    ctx = logger_ctx(tmp_path, FakeSocket(password="hunter2"))
+    asked = post(ctx, "start", {"deal": "dl-104"})
+    assert asked.status == 502 and body(asked)["needsPassword"] is True
+
+    ctx = logger_ctx(tmp_path / "again", FakeSocket(password="hunter2"))
+    started = post(ctx, "start", {"deal": "dl-104", "password": "hunter2"})
+    assert started.status == 200 and b"hunter2" not in started.body
+    assert b"hunter2" not in get(ctx, "/api/logger").body
+    post(ctx, "stop")
+
+
+def test_a_server_built_without_a_logger_says_there_is_no_such_endpoint(ctx):
+    assert get(ctx, "/api/logger").status == 404
+    assert post(ctx, "start", {"deal": "dl-104"}).status == 404
 
 
 # Over a real socket

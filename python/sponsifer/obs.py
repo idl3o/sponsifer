@@ -28,6 +28,9 @@ SUBSCRIPTIONS = SCENES | OUTPUTS | SCENE_ITEMS | UI | INPUT_ACTIVE | INPUT_SHOW
 
 HELLO, IDENTIFY, IDENTIFIED, EVENT, REQUEST, RESPONSE = 0, 1, 2, 5, 6, 7
 
+#: Where OBS's WebSocket server listens unless the creator moved it.
+OBS_URL = "ws://127.0.0.1:4455"
+
 
 def auth_string(password: str, salt: str, challenge: str) -> str:
     """obs-websocket 5 authentication: base64(sha256(base64(sha256(password + salt)) + challenge))."""

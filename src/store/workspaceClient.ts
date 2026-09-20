@@ -1,4 +1,4 @@
-import type { OnAirSummary } from '../domain/onair';
+import { parseLoggerStatus, type LoggerStatus, type OnAirSummary } from '../domain/onair';
 import { parseWorkspace, type Workspace } from '../domain/workspace';
 
 /**
@@ -142,6 +142,70 @@ export async function fetchOnAir(fetcher: Fetch, dealId: string): Promise<OnAir>
   }
   const summary = (await response.json().catch(() => null)) as OnAirSummary | null;
   return summary && Array.isArray(summary.intervals) ? { kind: 'ok', summary } : { kind: 'offline' };
+}
+
+/**
+ * What came of asking the server about its on-air logger.
+ *
+ * `obs` is the server working and OBS saying no: not running, a password
+ * wanted or refused, none of the sources present. The status carries the
+ * reason. `unavailable` is a server that has no logger to run.
+ */
+export type Logger =
+  | { kind: 'ok'; status: LoggerStatus }
+  | { kind: 'obs'; status: LoggerStatus }
+  | { kind: 'refused'; reason: string }
+  | { kind: 'unavailable' }
+  | { kind: 'offline' };
+
+const URL_LOGGER = '/api/logger';
+
+async function statusOf(response: Response, kind: 'ok' | 'obs'): Promise<Logger> {
+  const status = parseLoggerStatus(await response.json().catch(() => null));
+  return status ? { kind, status } : { kind: 'offline' };
+}
+
+/** Whether the logger is running, and for which deal. */
+export async function fetchLogger(fetcher: Fetch): Promise<Logger> {
+  let response: Response;
+  try {
+    response = await fetcher(URL_LOGGER, { cache: 'no-store' });
+  } catch {
+    return { kind: 'offline' };
+  }
+  if (response.ok) return statusOf(response, 'ok');
+  await drain(response);
+  return response.status === 404 ? { kind: 'unavailable' } : { kind: 'offline' };
+}
+
+async function postLogger(fetcher: Fetch, action: 'start' | 'stop', body: Record<string, string>): Promise<Logger> {
+  let response: Response;
+  try {
+    response = await fetcher(`${URL_LOGGER}/${action}`, {
+      method: 'POST',
+      cache: 'no-store',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+  } catch {
+    return { kind: 'offline' };
+  }
+  if (response.ok) return statusOf(response, 'ok');
+  if (response.status === 502) return statusOf(response, 'obs');
+  return { kind: 'refused', reason: await errorOf(response) };
+}
+
+/**
+ * Start logging a deal. The password goes in this one request to the server on
+ * this machine, which hands it to OBS and keeps no copy; it is never stored here.
+ */
+export function startLogger(fetcher: Fetch, dealId: string, password = ''): Promise<Logger> {
+  return postLogger(fetcher, 'start', password ? { deal: dealId, password } : { deal: dealId });
+}
+
+/** Stop the logger, whichever deal it is for. Safe when none is running. */
+export function stopLogger(fetcher: Fetch): Promise<Logger> {
+  return postLogger(fetcher, 'stop', {});
 }
 
 /** Where the server keeps the file, for the status line. Empty when it cannot say. */

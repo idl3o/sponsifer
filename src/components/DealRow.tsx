@@ -8,6 +8,7 @@ import type { Deal, Sighting } from '../domain/types';
 import { useSyncStatus } from '../store/sync';
 import { useStore } from '../store/useStore';
 import { fetchOnAir, type OnAir } from '../store/workspaceClient';
+import { LoggerControl } from './LoggerControl';
 import { EmblemEditor } from './emblem/EmblemEditor';
 import { Button, Pill, TextField, copyText, money } from './ui/Primitives';
 
@@ -159,8 +160,8 @@ function RateSubmission({ url }: { url: string }) {
   );
 }
 
-/** Read the on-air log for a deal once, when its row is opened. Only the server can answer. */
-function useOnAir(dealId: string, served: boolean): OnAir | null {
+/** Read the on-air log for a deal when its row is opened, and again when `tick` moves. Only the server can answer. */
+function useOnAir(dealId: string, served: boolean, tick: number): OnAir | null {
   const [state, setState] = useState<OnAir | null>(null);
   useEffect(() => {
     if (!served) return;
@@ -171,7 +172,7 @@ function useOnAir(dealId: string, served: boolean): OnAir | null {
     return () => {
       cancelled = true;
     };
-  }, [dealId, served]);
+  }, [dealId, served, tick]);
   return served ? state : null;
 }
 
@@ -181,8 +182,8 @@ function OnAirLine({ deal, onAir }: { deal: Deal; onAir: OnAir | null }) {
   if (onAir.kind === 'missing') {
     return (
       <p className="note">
-        No on-air log yet. Run <code>sponsifer log {deal.id}</code> while you stream, with OBS's WebSocket
-        server switched on.
+        No on-air log yet. Start logging before you go live, or run <code>sponsifer log {deal.id}</code> in a
+        terminal. Either way OBS's WebSocket server must be switched on.
       </p>
     );
   }
@@ -233,7 +234,9 @@ function OnStream({ deal }: { deal: Deal }) {
   const [copied, setCopied] = useState(false);
   const [editing, setEditing] = useState(false);
   const url = overlayUrl(window.location.origin, deal.id);
-  const onAir = useOnAir(deal.id, served);
+  // Moved each time the logger starts or stops, so the line below rereads the log.
+  const [logTick, setLogTick] = useState(0);
+  const onAir = useOnAir(deal.id, served, logTick);
   return (
     <>
       <h3>On stream</h3>
@@ -253,6 +256,7 @@ function OnStream({ deal }: { deal: Deal }) {
       </div>
       <OtherPlacements deal={deal} served={served} />
       {editing && <EmblemEditor deal={deal} />}
+      {served && <LoggerControl dealId={deal.id} onChanged={() => setLogTick((n) => n + 1)} />}
       <OnAirLine deal={deal} onAir={onAir} />
     </>
   );

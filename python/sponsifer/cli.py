@@ -22,6 +22,7 @@ from datetime import date
 from pathlib import Path
 
 from . import __version__, keys, ledger, manifest, sshsig, workspace
+from .obs import OBS_URL
 from .timestamp import DEFAULT_TSA
 
 
@@ -59,6 +60,8 @@ def _parser() -> argparse.ArgumentParser:
     serve.add_argument("--api-only", action="store_true", help="serve only /api, for development beside Vite")
     serve.add_argument("--allow-origin", action="append", default=[], metavar="URL",
                        help="also accept writes from this origin, e.g. http://localhost:5180 for Vite")
+    serve.add_argument("--obs-url", default=OBS_URL, metavar="URL",
+                       help="where OBS's WebSocket server is listening, for the on-air logger the app can start")
 
     seal = sub.add_parser("seal", help="watermark and timestamp a deal's asset, before delivery")
     seal.add_argument("deal", help="deal id, shown in the app's Deals tab, e.g. dl-104")
@@ -83,7 +86,7 @@ def _parser() -> argparse.ArgumentParser:
     log.add_argument("--source", action="append", metavar="NAME",
                      help="a browser source to watch, by its name in OBS; repeat for several "
                           "(default: every placement's usual name, watching those OBS has)")
-    log.add_argument("--url", default="ws://127.0.0.1:4455", help="where OBS's WebSocket server is listening")
+    log.add_argument("--url", default=OBS_URL, help="where OBS's WebSocket server is listening")
     log.add_argument("--poll", type=float, default=2.0, help="seconds of quiet before asking OBS directly")
     log.add_argument("--workspace", type=Path, help=_WORKSPACE_HELP)
 
@@ -334,6 +337,7 @@ def main(argv: list[str] | None = None) -> None:
             api_only=getattr(args, "api_only", False),
             allowed_origins=frozenset(getattr(args, "allow_origin", [])),
             home=home,
+            obs_url=getattr(args, "obs_url", OBS_URL),
         )
     elif args.command == "seal":
         sys.exit(_seal(args, home))

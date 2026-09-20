@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { onAirSentence, placementSentence, reportSentence, spanOf, type OnAirSummary } from './onair';
+import {
+  loggerSentence,
+  onAirSentence,
+  parseLoggerStatus,
+  placementSentence,
+  reportSentence,
+  spanOf,
+  type LoggerStatus,
+  type OnAirSummary,
+} from './onair';
 
 const base: OnAirSummary = {
   deal: 'dl-104',
@@ -67,5 +76,43 @@ describe('reportSentence', () => {
     expect(reportSentence({ ...base, reports: ['dl-104-20260918T220000Z', 'dl-104-20260919T090000Z'] }, 'dl-104')).toBe(
       'Signed report: dl-104-20260919T090000Z',
     );
+  });
+});
+
+const idle: LoggerStatus = { running: false, deal: null, since: null, sources: [], missing: [], error: null, needsPassword: false };
+
+describe('parseLoggerStatus', () => {
+  it('accepts what the server sends', () => {
+    expect(parseLoggerStatus({ ...idle, running: true, deal: 'dl-104', sources: ['Sponsor overlay'] })?.deal).toBe('dl-104');
+  });
+
+  it('refuses anything else rather than guessing', () => {
+    for (const bad of [null, 'running', [], {}, { ...idle, running: 'yes' }, { ...idle, sources: [1] }, { ...idle, deal: 7 }]) {
+      expect(parseLoggerStatus(bad)).toBeNull();
+    }
+  });
+});
+
+describe('loggerSentence', () => {
+  const running: LoggerStatus = {
+    ...idle, running: true, deal: 'dl-104', since: '2026-09-20T14:02:11.000+00:00', sources: ['Sponsor overlay', 'Sponsor slate'],
+  };
+
+  it('says since when, and what is being watched', () => {
+    expect(loggerSentence(running, 'dl-104')).toBe('Logging since 14:02 UTC; watching Sponsor overlay, Sponsor slate.');
+  });
+
+  it('names a placement OBS does not have, because the log will never see it', () => {
+    expect(loggerSentence({ ...running, missing: ['Sponsor card'] }, 'dl-104')).toContain('not in OBS, so not watched: Sponsor card');
+  });
+
+  it('points at the deal that holds the logger', () => {
+    expect(loggerSentence(running, 'dl-200')).toBe('The logger is running for dl-104. Stop it there before logging this one.');
+  });
+
+  it("gives the logger's own reason for stopping, on the deal it was for", () => {
+    const stopped = { ...idle, deal: 'dl-104', error: 'OBS closed the connection, so the logger stopped.' };
+    expect(loggerSentence(stopped, 'dl-104')).toBe('OBS closed the connection, so the logger stopped.');
+    expect(loggerSentence(stopped, 'dl-200')).toMatch(/^Not logging\./);
   });
 });

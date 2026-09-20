@@ -81,3 +81,68 @@ export function reportSentence(summary: OnAirSummary, dealId: string): string {
   const latest = summary.reports[summary.reports.length - 1];
   return latest ? `Signed report: ${latest}` : `No signed report yet. Run \`sponsifer report ${dealId}\`.`;
 }
+
+/**
+ * Whether the server's on-air logger is running, as `runner.Status.to_json()`
+ * in Python reports it. It arrives over the network, so it is parsed.
+ */
+export interface LoggerStatus {
+  running: boolean;
+  /** The deal being logged, or the one last asked for. */
+  deal: string | null;
+  since: string | null;
+  /** The OBS sources being watched. */
+  sources: string[];
+  /** Conventional sources OBS does not have, which are therefore not being watched. */
+  missing: string[];
+  /** Why the logger is not running, when it said. */
+  error: string | null;
+  /** OBS asked for its WebSocket password and none was given. */
+  needsPassword: boolean;
+}
+
+function strings(value: unknown): string[] | null {
+  return Array.isArray(value) && value.every((v): v is string => typeof v === 'string') ? value : null;
+}
+
+function textOrNull(value: unknown): string | null | undefined {
+  return value === null || typeof value === 'string' ? value : undefined;
+}
+
+/** The status as typed data, or null when the answer is not one. */
+export function parseLoggerStatus(data: unknown): LoggerStatus | null {
+  if (typeof data !== 'object' || data === null) return null;
+  const o = data as Record<string, unknown>; // narrowed field by field below
+  const deal = textOrNull(o.deal);
+  const since = textOrNull(o.since);
+  const error = textOrNull(o.error);
+  const sources = strings(o.sources);
+  const missing = strings(o.missing);
+  if (typeof o.running !== 'boolean' || typeof o.needsPassword !== 'boolean') return null;
+  if (deal === undefined || since === undefined || error === undefined || !sources || !missing) return null;
+  return { running: o.running, deal, since, sources, missing, error, needsPassword: o.needsPassword };
+}
+
+/** "14:02 UTC" from an ISO time, or the text itself when it is not one. */
+function clockOf(iso: string): string {
+  const match = /T(\d{2}:\d{2})/.exec(iso);
+  return match?.[1] ? `${match[1]} UTC` : iso;
+}
+
+/**
+ * What the logger is doing, from the point of view of one deal's row. Says
+ * what is not being watched, because a placement the log never saw is a minute
+ * the report cannot claim.
+ */
+export function loggerSentence(status: LoggerStatus, dealId: string): string {
+  if (status.running && status.deal !== dealId) {
+    return `The logger is running for ${status.deal ?? 'another deal'}. Stop it there before logging this one.`;
+  }
+  if (status.running) {
+    const parts = [`Logging since ${status.since ? clockOf(status.since) : 'just now'}`, `watching ${status.sources.join(', ')}`];
+    if (status.missing.length > 0) parts.push(`not in OBS, so not watched: ${status.missing.join(', ')}`);
+    return `${parts.join('; ')}.`;
+  }
+  if (status.deal === dealId && status.error) return status.error;
+  return 'Not logging. Start it before you go live, so the log sees the stream begin.';
+}

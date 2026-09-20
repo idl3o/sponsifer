@@ -223,6 +223,86 @@ describe('App', () => {
     }
   });
 
+  it('starts and stops the on-air logger from a won deal, asking for the OBS password only when OBS does', async () => {
+    const idle = { running: false, deal: null, since: null, sources: [], missing: [], error: null, needsPassword: false };
+    const json = (status: number, body: unknown) =>
+      new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
+    const posted: { url: string; body: Record<string, string> }[] = [];
+    vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
+      if (String(url) === '/api/logger') return json(200, idle);
+      if (String(url).startsWith('/api/logger/')) {
+        const body = JSON.parse(String(init?.body)) as Record<string, string>;
+        posted.push({ url: String(url), body });
+        const deal = body.deal ?? null;
+        if (String(url).endsWith('/stop')) return json(200, { ...idle, deal: posted[0]?.body.deal ?? null });
+        return body.password === 'hunter2'
+          ? json(200, { ...idle, running: true, deal, since: '2026-09-20T14:02:00.000+00:00', sources: ['Sponsor overlay'], missing: ['Sponsor card'] })
+          : json(502, { ...idle, deal, error: 'OBS asks for its WebSocket password.', needsPassword: true });
+      }
+      return Promise.reject(new Error('offline'));
+    }));
+    syncStatus.setState({ mode: 'file' });
+    try {
+      render(<App />);
+      fireEvent.click(screen.getByRole('tab', { name: 'Deals' }));
+      fireEvent.change(screen.getByLabelText(/Agreed, GBP/i), { target: { value: '2400' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Record' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Delivery, rights and sightings' }));
+
+      fireEvent.click(await screen.findByRole('button', { name: 'Start logging' }));
+      const field = await screen.findByLabelText(/OBS WebSocket password/);
+      expect(screen.getByText('OBS asks for its WebSocket password.')).toBeTruthy();
+
+      fireEvent.change(field, { target: { value: 'hunter2' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Start logging' }));
+      expect(await screen.findByText(/Logging since 14:02 UTC; watching Sponsor overlay; not in OBS, so not watched: Sponsor card\./)).toBeTruthy();
+      expect(screen.queryByLabelText(/OBS WebSocket password/)).toBeNull();
+      expect(JSON.stringify(localStorage)).not.toContain('hunter2');
+      expect(JSON.stringify(useStore.getState())).not.toContain('hunter2');
+
+      fireEvent.click(screen.getByRole('button', { name: 'Stop logging' }));
+      expect(await screen.findByText(/^Not logging\./)).toBeTruthy();
+      expect(posted.map((p) => p.url)).toEqual(['/api/logger/start', '/api/logger/start', '/api/logger/stop']);
+      expect(posted.filter((p) => 'password' in p.body)).toHaveLength(1);
+    } finally {
+      syncStatus.setState({ mode: 'browser-only' });
+    }
+  });
+
+  it('keeps the logger control when the server refuses, so a deal still being saved can be tried again', async () => {
+    const idle = { running: false, deal: null, since: null, sources: [], missing: [], error: null, needsPassword: false };
+    const json = (status: number, body: unknown) =>
+      new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
+    let starts = 0;
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+      if (String(url) === '/api/logger') return json(200, idle);
+      if (String(url) === '/api/logger/start') {
+        starts += 1;
+        return starts === 1
+          ? json(404, { error: 'no deal dl-101 in the workspace file yet; try again in a moment' })
+          : json(200, { ...idle, running: true, deal: useStore.getState().deals[0]?.id ?? null, sources: ['Sponsor overlay'] });
+      }
+      return Promise.reject(new Error('offline'));
+    }));
+    syncStatus.setState({ mode: 'file' });
+    try {
+      render(<App />);
+      fireEvent.click(screen.getByRole('tab', { name: 'Deals' }));
+      fireEvent.change(screen.getByLabelText(/Agreed, GBP/i), { target: { value: '2400' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Record' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Delivery, rights and sightings' }));
+
+      fireEvent.click(await screen.findByRole('button', { name: 'Start logging' }));
+      expect(await screen.findByText(/^Not started: no deal dl-101 in the workspace file yet; try again in a moment\.$/)).toBeTruthy();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Start logging' }));
+      expect(await screen.findByRole('button', { name: 'Stop logging' })).toBeTruthy();
+      expect(screen.queryByText(/^Not started:/)).toBeNull();
+    } finally {
+      syncStatus.setState({ mode: 'browser-only' });
+    }
+  });
+
   it('edits the emblem by hand on a won deal, and the house style follows', () => {
     render(<App />);
     fireEvent.click(screen.getByRole('tab', { name: 'Deals' }));

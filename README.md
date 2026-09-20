@@ -32,7 +32,7 @@ MIT licensed. No account, no remote server, no telemetry. Built for a creator wh
 
 **Seals what you deliver, if you ask it to.** A sponsor who keeps your whitelisted ad running on day 90 has bought the ninety-day licence at the thirty-day price. `sponsifer seal` watermarks the file before delivery, signs a licence receipt, and has it timestamped. If the ad later turns up in a public ad library, `sponsifer verify` checks it, and the app prices the overrun as the further 30-day periods the sponsor took. It is opt-in per deal, and it cannot be applied after delivery: the evidence, not the app, enforces that. Receipts are signed with your own SSH key, so a sponsor can check one with `ssh-keygen`, which is already on their machine. [docs/provenance.md](https://github.com/idl3o/sponsifer/blob/main/docs/provenance.md) explains how, and what it cannot do.
 
-**Puts a sponsor on stream, and shows they were there.** This half is early. Each won deal has overlay addresses to add to OBS as browser sources — a corner emblem you place by hand over a stream frame, a lower third, a segment slate and a break card — drawn in your house style with the sponsor's own logo. Every one carries "Ad", asks OBS for no permissions, and never draws a price. While you stream, `sponsifer log` listens to OBS's own WebSocket and writes down, in wall-clock UTC, every second each placement was in the broadcast feed, checking OBS directly rather than trusting its events. Afterwards `sponsifer report` folds that log into intervals with offsets into the recording, signs it with your SSH key, and gives you the three files the sponsor keeps: the recording is the evidence, the report says where to look. The logger has been tested against a fake OBS, and OBS's own reporting against a real session: scene switches, visibility toggles and studio mode all produced matching events, with no disagreement from the direct checks. A live stream and a nested scene are still to be run. It does not start from the app yet.
+**Puts a sponsor on stream, and shows they were there.** This half is early. Each won deal has overlay addresses to add to OBS as browser sources — a corner emblem you place by hand over a stream frame, a lower third, a segment slate and a break card — drawn in your house style with the sponsor's own logo. Every one carries "Ad", asks OBS for no permissions, and never draws a price. While you stream, the on-air logger, started from the won deal in the app or as `sponsifer log` in a terminal, listens to OBS's own WebSocket and writes down, in wall-clock UTC, every second each placement was in the broadcast feed, checking OBS directly rather than trusting its events. Afterwards `sponsifer report` folds that log into intervals with offsets into the recording, signs it with your SSH key, and gives you the three files the sponsor keeps: the recording is the evidence, the report says where to look. The logger has been tested against a fake OBS, and OBS's own reporting against a real session: scene switches, visibility toggles and studio mode all produced matching events, with no disagreement from the direct checks. A live stream and a nested scene are still to be run. Starting it from the app has been run end to end against a stand-in OBS over a real socket, password included, and not yet against OBS itself.
 
 ---
 
@@ -104,7 +104,7 @@ sponsifer setup              # fetch the watermark model once, ahead of time
 sponsifer seal dl-104 reel.png --source capture
 sponsifer verify ad.jpg --started 2026-10-01
 
-sponsifer log dl-104 --source "Sponsor overlay"    # during the stream, with OBS's WebSocket server on
+sponsifer log dl-104 --source "Sponsor overlay"    # during the stream, or press Start logging on the deal in the app
 sponsifer report dl-104 --vod https://...          # afterwards: the signed delivery report
 ```
 
@@ -117,10 +117,10 @@ For development:
 ```bash
 npm run dev        # http://localhost:5180, saving in the browser only
 npm run dev:api    # beside it: the workspace server, so the app saves to the file
-npm test           # 222 tests, including the calibration sweep
+npm test           # 230 tests, including the calibration sweep
 npm run typecheck
 npm run lint       # includes the house rules: no function over 50 lines
-python -m pytest   # 130 tests: the workspace server, receipts, SSH signatures, timestamps, seal and verify, the on-air log and the report
+python -m pytest   # 159 tests: the workspace server, receipts, SSH signatures, timestamps, seal and verify, the on-air log, its runner and the report
 
 node scripts/playtest.mjs   # drives real Chrome, screenshots every tab,
                             # checks overflow, tap targets and broken numbers

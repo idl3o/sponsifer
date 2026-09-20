@@ -8,6 +8,10 @@ network itself, so every rule below is tested without one.
     GET /api/info        what is being served, and where the file lives
     GET /api/workspace   the file's bytes, with its revision as the ETag
     PUT /api/workspace   replace it, if it is still at the revision the app read
+    GET /api/onair/<deal>    what the on-air log says for a deal
+    GET /api/logger          whether the on-air logger is running, and for which deal
+    POST /api/logger/start   start it for a won deal; the body may carry OBS's password
+    POST /api/logger/stop    stop it
 
 Two guards, because a page on any website can send requests to 127.0.0.1:
 
@@ -16,6 +20,9 @@ Two guards, because a page on any website can send requests to 127.0.0.1:
 - A write must come from this server's own origin, as JSON. A cross-site JSON
   PUT is preflighted, and the server answers no preflight and sends no CORS
   headers, so a foreign page can neither write nor read the answer.
+
+Starting and stopping the logger are writes, and pass the same guard: a foreign
+page must not be able to switch a creator's evidence off.
 """
 
 from __future__ import annotations
@@ -30,6 +37,7 @@ from typing import Any, Mapping
 
 from . import __version__, onair, report, workspace
 from .brand import PRODUCT
+from .runner import Busy, Runner
 
 #: The largest workspace accepted. The board's image is capped near 400 KB.
 MAX_BODY = 4 * 1024 * 1024
@@ -56,6 +64,8 @@ class Context:
     lock: threading.Lock = field(default_factory=threading.Lock, compare=False)
     #: Where the on-air logs and the signed reports live. The workspace's folder unless told otherwise.
     home: Path | None = None
+    #: The on-air logger this server can run. None when it was built without one.
+    runner: Runner | None = field(default=None, compare=False)
 
     def home_dir(self) -> Path:
         return self.home or self.workspace.parent
@@ -103,6 +113,10 @@ def handle(method: str, path: str, headers: Mapping[str, str], body: bytes, ctx:
         return _write(h, body, ctx)
     if route.startswith("/api/onair/") and method == "GET":
         return _onair(route[len("/api/onair/"):], ctx)
+    if route == "/api/logger" and method == "GET" and ctx.runner is not None:
+        return _json(200, ctx.runner.status().to_json())
+    if route in ("/api/logger/start", "/api/logger/stop") and method == "POST" and ctx.runner is not None:
+        return _logger(route.rsplit("/", 1)[1], h, body, ctx, ctx.runner)
     if route in ("/api/info", "/api/workspace"):
         return _json(405, {"error": f"{method} is not allowed here"})
     return _json(404, {"error": "no such endpoint"})
@@ -123,6 +137,56 @@ def _onair(deal_id: str, ctx: Context) -> Response:
     folder = report.reports_dir(home)
     names = sorted(p.name[: -len(".report.json")] for p in folder.glob(f"{deal_id}-*.report.json")) if folder.exists() else []
     return _json(200, {**onair.delivery(lines).to_json(), "reports": names})
+
+
+def _not_loggable(deal_id: Any, ctx: Context) -> Response | None:
+    """Why this deal cannot be logged, or None. The same refusals as `sponsifer log`."""
+    if not isinstance(deal_id, str) or not _DEAL_ID.match(deal_id):
+        return _json(400, {"error": "not a deal id"})
+    with ctx.lock:
+        try:
+            data = workspace.load(ctx.workspace)
+        except FileNotFoundError:
+            return _json(404, {"error": "there is no workspace file yet"})
+        except ValueError as error:
+            return _json(422, {"error": str(error)})
+    deal = workspace.find_deal(data, deal_id)
+    if deal is None:
+        # The app saves a moment after an edit, so a deal recorded seconds ago may not have reached the file.
+        return _json(404, {"error": f"no deal {deal_id} in the workspace file yet; if you have just recorded it, "
+                                    "it is still being saved, so try again in a moment"})
+    if deal.get("outcome") != "won":
+        return _json(409, {"error": f"{deal_id} is not a won deal, so there is nothing to deliver"})
+    return None
+
+
+def _logger(action: str, h: Mapping[str, str], body: bytes, ctx: Context, runner: Runner) -> Response:
+    """Start or stop the on-air logger. The password, if any, goes to OBS and nowhere else."""
+    refused = _refusal(h, body, ctx)
+    if refused:
+        return refused
+    if action == "stop":
+        return _json(200, runner.stop().to_json())
+    try:
+        asked = json.loads(body.decode("utf-8"))
+    except (UnicodeDecodeError, ValueError):
+        return _json(400, {"error": "the body is not valid JSON"})
+    if not isinstance(asked, dict):
+        return _json(400, {"error": "send the deal to log as a JSON object"})
+    deal_id, password = asked.get("deal"), asked.get("password")
+    if password is not None and not isinstance(password, str):
+        return _json(400, {"error": "the password must be text"})
+    problem = _not_loggable(deal_id, ctx)
+    if problem:
+        return problem
+    try:
+        status = runner.start(deal_id, password or None)
+    except Busy as busy:
+        if busy.deal == deal_id:
+            return _json(200, runner.status().to_json())
+        return _json(409, {"error": f"the logger is already running for {busy.deal}; stop it first", "deal": busy.deal})
+    # 502: this server is fine, and OBS, which it was asked to reach, said no.
+    return _json(200 if status.running else 502, status.to_json())
 
 
 def _read(h: Mapping[str, str], ctx: Context) -> Response:

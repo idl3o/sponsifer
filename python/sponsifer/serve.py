@@ -18,6 +18,8 @@ from pathlib import Path
 
 from . import api
 from .brand import PRODUCT
+from .obs import OBS_URL
+from .runner import Runner
 
 WEB = Path(__file__).parent / "web"
 
@@ -103,23 +105,25 @@ class _Handler(http.server.SimpleHTTPRequestHandler):
 
 
 def make_server(workspace: Path, port: int = 5180, api_only: bool = False,
-                allowed_origins: frozenset[str] = frozenset(), web: Path = WEB, home: Path | None = None) -> _Server:
+                allowed_origins: frozenset[str] = frozenset(), web: Path = WEB, home: Path | None = None,
+                obs_url: str = OBS_URL) -> _Server:
     """Bind 127.0.0.1. Port 0 picks a free port, which the context then records."""
     server = _Server(("127.0.0.1", port), _Handler)
     server.web, server.api_only = web, api_only
-    server.ctx = api.Context(workspace, server.server_address[1], allowed_origins, home=home)
+    runner = Runner(home or workspace.parent, obs_url)
+    server.ctx = api.Context(workspace, server.server_address[1], allowed_origins, home=home, runner=runner)
     return server
 
 
 def serve(workspace: Path, port: int = 5180, open_browser: bool = True, api_only: bool = False,
-          allowed_origins: frozenset[str] = frozenset(), home: Path | None = None) -> None:
+          allowed_origins: frozenset[str] = frozenset(), home: Path | None = None, obs_url: str = OBS_URL) -> None:
     """Serve until interrupted."""
     if not api_only and not (WEB / "index.html").exists():
         raise SystemExit(
             "The web app is not bundled in this install. From a checkout, run `npm run bundle` first, "
             "or use `npm run dev` with `npm run dev:api` for development."
         )
-    with make_server(workspace, port, api_only, allowed_origins, home=home) as server:
+    with make_server(workspace, port, api_only, allowed_origins, home=home, obs_url=obs_url) as server:
         url = f"http://127.0.0.1:{server.ctx.port}/"
         what = f"{PRODUCT}'s workspace API" if api_only else PRODUCT
         print(f"{what} is running at {url}  (Ctrl+C to stop)")
@@ -130,3 +134,7 @@ def serve(workspace: Path, port: int = 5180, open_browser: bool = True, api_only
             server.serve_forever()
         except KeyboardInterrupt:
             print("\nStopped.")
+        finally:
+            # A logger still running closes its session in the log before the server goes.
+            if server.ctx.runner is not None:
+                server.ctx.runner.stop()
