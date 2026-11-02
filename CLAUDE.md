@@ -133,7 +133,7 @@ Sam delegated the publishing regime to Claude on 2026-09-20, `main` included. Th
 - commits, feature branches, and pushing them;
 - merging to `main` and pushing `main`, when all three hold: the work is something Sam asked for, `npm run check` is green locally, and the merge is a fast-forward. Never a force-push, never `--no-verify`;
 - watching CI after every push, and fixing what it finds;
-- TestPyPI rehearsals, always with a development version (`X.Y.Z.devN`) from a throwaway branch, never with a release number: a TestPyPI version cannot be uploaded twice and the workflow has `skip-existing`, so a release number used early makes the real rehearsal install a stale file without saying so;
+- TestPyPI rehearsals, always with a development version (`X.Y.Z.devN`) from a throwaway branch, never with a release number: a TestPyPI version cannot be uploaded twice and the workflow has `skip-existing`, so a release number used early makes the real rehearsal install a stale file without saying so. **Dispatch only after `git ls-remote` shows the branch at the commit that carries the dev version:** on 2026-11-02 a commit failed, the push went ahead at `main`'s 0.2.0, and the dispatched run was cancelled during its build, before the upload. TestPyPI holds 0.2.0.dev0 and 0.2.0.dev1, so the next rehearsal is dev2;
 - keeping the record straight: `docs/rename.md`, the plans, the README's and `CONTRIBUTING.md`'s test counts.
 
 **These stay Sam's, whatever else is delegated. Prepare everything up to the last step, then stop:**

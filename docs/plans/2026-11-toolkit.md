@@ -49,6 +49,15 @@ Each phase is its own commit, with every gate passing after it.
 
 The suites stand at 278 vitest and 268 pytest. They also pass on a base install with no extras: 250 tests, plus one sealing test skipped by design.
 
+Checked beyond the suites:
+
+- **The built wheel, in a clean venv with no extras.** It installs `cryptography` and `websockets` and nothing heavier. A bare `sponsifer` lists the tools, and `seal` prints the install hint.
+- **In Chrome.** The overlay and the dock were served from a workspace whose pricing fields the app cannot read. The overlay still drew "AD Powered by Hetzner", the dock listed the deal, and the app said the file could not be read.
+- **Across two real processes.** While another process held the logger lock, the app's Start and setup were refused with a 409 naming it; once that process was killed, the lock was free.
+- **The play test** ran clean against `npm run dev` with a scratch workspace API.
+- **CI** passed on `main` at ce6c622, including `python-base`.
+- **The TestPyPI rehearsal.** 0.2.0.dev1 was released by run 41428528939, installed from TestPyPI into a clean venv (dependencies from PyPI), and served the app, the overlay, the dock and the API.
+
 ## Still owed
 
 - **Against Sam's real OBS:** `status`; a label log of a real source; a report checked with stock `ssh-keygen`; and a terminal logger refusing the app's Start. OBS was not running on this machine during the build.
