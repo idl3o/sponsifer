@@ -8,7 +8,7 @@ import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
 export default defineConfig(
-  { ignores: ['dist/', 'python/', '.venv/', 'playtest-shots/'] },
+  { ignores: ['dist/', 'dist-site/', 'python/', '.venv/', 'playtest-shots/'] },
   js.configs.recommended,
   tseslint.configs.recommended,
   {

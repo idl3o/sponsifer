@@ -167,7 +167,7 @@ For development:
 npm run dev        # http://localhost:5180, saving in the browser only
 npm run dev:api    # beside it: the workspace server, so the app saves to the file
 npm run check      # every gate at once: typecheck, lint, vitest and pytest. Run before any push
-npm test           # 278 tests, including the calibration sweep
+npm test           # 344 tests, including the calibration sweep
 npm run typecheck
 npm run lint       # includes the house rules: no function over 50 lines
 python -m pytest   # 273 tests: the server, the on-air log, its lock and runner, status, setup, reports, labels, receipts, SSH signatures, timestamps, seal and verify
@@ -207,6 +207,8 @@ src/domain/         pure functions: no clock, no randomness, no I/O
   offer.ts            an incoming offer judged against the same engine, with the reply
   deals.ts            deal log, personal calibration, rate submission, overrun pricing
   workspace.ts        versioned file format; validates every import and old save
+src/site/           the public site's report checker: SSHSIG in WebCrypto, every key type ssh-keygen signs with
+site/               the public site's pages: two doors, streamer onboarding and the sponsor's checker
 src/overlay/        the OBS browser source: transparent, fails silently
 src/dock/           the OBS dock
 src/components/     one view per tab

@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en-GB">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="referrer" content="no-referrer" />
+    <title>Check a Sponsifer report</title>
+    <meta name="description" content="Check a Sponsifer delivery report or licence receipt in your browser. Nothing is uploaded." />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%276%27 fill=%27%230d0f13%27/%3E%3Ctext x=%2716%27 y=%2723%27 font-size=%2720%27 font-family=%27sans-serif%27 font-weight=%27700%27 text-anchor=%27middle%27 fill=%27%23e2b658%27%3ES%3C/text%3E%3C/svg%3E" />
+    <link rel="stylesheet" href="./site.css" />
+  </head>
+  <body>
+    <div class="page wide">
+      <header class="site">
+        <a class="home" href="./index.html">Sponsifer</a>
+        <nav aria-label="Site">
+          <a href="./streamers.html">For streamers</a>
+          <a href="./verify.html" aria-current="page">Check a report</a>
+        </nav>
+      </header>
+
+      <main>
+        <h1>Check a report or receipt</h1>
+        <p class="lede">
+          Choose the files you were sent: the <code>.json</code> and its <code>.sig</code>. They are read by this
+          browser and go nowhere: this page is forbidden, by its own security policy, from making any request.
+        </p>
+
+        <div id="verifier">
+          <noscript><p>The checker needs JavaScript. Without it, use <code>ssh-keygen</code> as described below.</p></noscript>
+        </div>
+
+        <h2>What a good result proves, and what it does not</h2>
+        <ul>
+          <li>
+            <strong>It proves</strong> the file is exactly what the holder of that key signed, and, once you have
+            entered the fingerprint from your agreement, that the holder is the creator you agreed with.
+          </li>
+          <li>
+            <strong>It does not prove</strong> the placement was on screen. The recording does that: open it at the
+            minutes the report gives. The report is an index into the recording, not proof on its own.
+          </li>
+          <li>
+            <strong>It does not prove</strong> who is behind a key you never agreed. A good signature by an unknown
+            key is worth nothing, which is why the fingerprint matters.
+          </li>
+        </ul>
+
+        <h2>Check it without this site</h2>
+        <p>
+          The notice that came with the report gives an <code>allowed_signers</code> line and the
+          <code>ssh-keygen -Y verify</code> command. Check that the line's key has the fingerprint in your agreement
+          (<code>ssh-keygen -lf</code> on a file holding the key prints it), then run the command. Reports are signed
+          in the namespace <code>sponsifer-delivery</code>, licence receipts in <code>sponsifer-receipt</code>.
+        </p>
+      </main>
+
+      <footer class="site">
+        Sponsifer is made by S. Lavi. MIT licensed.
+        <a href="https://github.com/idl3o/sponsifer">Source on GitHub</a>, including this checker
+        (<code>src/site</code>).
+      </footer>
+    </div>
+    <script type="module" src="../src/site/verify/main.tsx"></script>
+  </body>
+</html>

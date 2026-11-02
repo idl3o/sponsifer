@@ -8,6 +8,8 @@
     "dev": "vite",
     "dev:api": "node scripts/dev-api.mjs",
     "build": "tsc --noEmit && vite build",
+    "dev:site": "vite --config vite.site.config.ts",
+    "build:site": "tsc --noEmit && vite build --config vite.site.config.ts",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",

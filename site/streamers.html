@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en-GB">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="referrer" content="no-referrer" />
+    <title>Sponsifer for streamers</title>
+    <meta name="description" content="From install to a signed delivery report: put a sponsor into OBS and show they were on air." />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%276%27 fill=%27%230d0f13%27/%3E%3Ctext x=%2716%27 y=%2723%27 font-size=%2720%27 font-family=%27sans-serif%27 font-weight=%27700%27 text-anchor=%27middle%27 fill=%27%23e2b658%27%3ES%3C/text%3E%3C/svg%3E" />
+    <link rel="stylesheet" href="./site.css" />
+  </head>
+  <body>
+    <div class="page">
+      <header class="site">
+        <a class="home" href="./index.html">Sponsifer</a>
+        <nav aria-label="Site">
+          <a href="./streamers.html" aria-current="page">For streamers</a>
+          <a href="./verify.html">Check a report</a>
+        </nav>
+      </header>
+
+      <main>
+        <h1>From install to a signed report</h1>
+        <p class="lede">
+          Everything runs on your machine. You need OBS (checked on 33.0.1), Python 3.10 or later, and an SSH key.
+        </p>
+
+        <ol class="steps">
+          <li>
+            <h3>Install it</h3>
+            <pre><code>pipx install sponsifer</code></pre>
+            <p class="note">
+              Sponsifer is not on PyPI yet. Until it is, install it from a checkout, as the
+              <a href="https://github.com/idl3o/sponsifer#running-it-from-source">README</a> describes.
+            </p>
+          </li>
+          <li>
+            <h3>Switch on OBS's WebSocket server</h3>
+            <p>
+              In OBS: <em>Tools, WebSocket Server Settings</em>. Sponsifer asks for its password only when OBS asks,
+              uses it once and keeps it nowhere. OBS does not start the server in Safe Mode.
+            </p>
+          </li>
+          <li>
+            <h3>Choose the key you sign with</h3>
+            <pre><code>sponsifer key --ssh ~/.ssh/id_ed25519</code></pre>
+            <p>
+              It prints your key's fingerprint. <strong>Put that fingerprint in your sponsorship agreements.</strong>
+              It is how a sponsor knows a report is yours: a valid signature by any other key proves nothing.
+              Sponsifer never reads your private key; OpenSSH signs, so passphrases and hardware keys work as usual.
+            </p>
+          </li>
+          <li>
+            <h3>Open the app and record the deal</h3>
+            <pre><code>sponsifer app</code></pre>
+            <p>
+              Record a won deal in the Deals or Ads tab, with the sponsor's logo and wording. The app also prices a
+              sponsorship and judges an offer, if you want it to.
+            </p>
+          </li>
+          <li>
+            <h3>Put the sponsor into OBS</h3>
+            <pre><code>sponsifer setup dl-104
+sponsifer status</code></pre>
+            <p>
+              <code>setup</code> makes four browser sources if they are missing (corner emblem, lower third, segment
+              slate, break card), hidden and at the canvas size, and points the ones you have at this deal. Your
+              scenes are built once; the sponsor is what changes. <code>status</code> checks the wiring and writes
+              nothing. Every placement carries "Ad" and never shows a price.
+            </p>
+            <p>
+              For a panel inside OBS, <code>sponsifer dock</code> gives the address to add under
+              <em>Docks, Custom Browser Docks</em>.
+            </p>
+          </li>
+          <li>
+            <h3>Go live, and log</h3>
+            <pre><code>sponsifer log dl-104</code></pre>
+            <p>
+              Or press Start in the dock. On air means the stream is live and the placement is in the program feed;
+              a recording alone does not count. Events are prompts and OBS is asked directly every few seconds;
+              where the two disagree, the direct answer counts and the disagreement is written down.
+            </p>
+          </li>
+          <li>
+            <h3>Sign the report, and send it</h3>
+            <pre><code>sponsifer report dl-104 --vod https://www.twitch.tv/videos/…</code></pre>
+            <p>
+              Send the sponsor the three files it names. They can check them on this site's
+              <a href="./verify.html">report checker</a>, or with <code>ssh-keygen</code> using the lines in the
+              notice. Twitch keeps a past broadcast for 7 days, 14 for Affiliates and 60 for Partners, so send it
+              promptly.
+            </p>
+          </li>
+        </ol>
+
+        <h2>Without a sponsor</h2>
+        <p>
+          <code>sponsifer log --label stream-1102 --source "Webcam"</code> times any source, and
+          <code>sponsifer report --label stream-1102</code> signs it as an airtime report.
+        </p>
+
+        <h2>What it cannot see</h2>
+        <ul>
+          <li>The recording is the evidence. The report only says where to look in it.</li>
+          <li>
+            OBS says whether a source is in the program, not on which canvas. With a second canvas running, as
+            Twitch's Dual Format does for vertical video, the log cannot say which feed a placement was in, and the
+            report says so.
+          </li>
+          <li>A logger that joined after the stream began cannot give offsets into the recording; the report says that too.</li>
+        </ul>
+      </main>
+
+      <footer class="site">
+        Sponsifer is made by S. Lavi. MIT licensed.
+        <a href="https://github.com/idl3o/sponsifer">Source on GitHub</a>.
+      </footer>
+    </div>
+  </body>
+</html>

@@ -124,6 +124,28 @@
 - **Every session records how many canvases OBS ran** (`canvases`, null when OBS would not say, which is not one). A report carries the count only when the log saw more than one, so a one-canvas report is the document it always was, and its notice then says the log cannot tell which feed a placement was in.
 - **The overlay and the dock parse only `stage.ts`** (the house style, and each deal's id, brand, outcome, dates and sponsor art), through `serverClient.ts`, never `workspace.ts` or `workspaceClient.ts`. A pricing field the app cannot read must not blank what is on stream. `parseWorkspace` parses those parts with the same functions. `src/overlay/imports.test.ts` fails if either entry reaches the pricing side.
 
+### The site (built 2026-11-02, on `feat/site`)
+
+Static pages for GitHub Pages: `site/*.html` and `site/site.css`, built by `vite.site.config.ts` into `dist-site/`. The verifier's code is in `src/site/`. It has two doors: streamer onboarding (`streamers.html`), and the sponsor's report checker (`verify.html`).
+
+- **The checker never disagrees with `ssh-keygen`.** `sshsig.ts` checks every key type ssh-keygen signs with: Ed25519, ECDSA P-256/384/521, RSA (rsa-sha2-256/512; SHA-1 `ssh-rsa` refused, as OpenSSH refuses it), sk-ssh-ed25519 and sk-ecdsa-sha2-nistp256. It uses WebCrypto alone, with no library.
+  - Its fixtures in `src/site/fixtures/` were signed by the real ssh-keygen (OpenSSH 10.5) and checked by OpenSSH 9.5.
+  - The sk- fixtures were built to PROTOCOL.u2f with software keys, and both ssh-keygen builds accept them.
+  - ssh-keygen accepts a security-key signature made without a touch, so the checker does too, and says so.
+  - Never regenerate a fixture without re-running ssh-keygen over it.
+- **Signed bytes are never rebuilt.** The signature is checked over the file's exact bytes, and parsing is for display only. `.gitattributes` marks the fixtures `-text`, because a line-ending conversion would break a good signature.
+- **Trust needs the fingerprint from the agreement**, not from the notice, which came by the same route as the report. A good signature by an unknown key is a warning, never a pass. When the signature does not hold, only that check is shown: the key inside it is only a claim.
+- **Each document kind has its namespace.** Delivery and airtime reports use `sponsifer-delivery`; receipts use `sponsifer-receipt`. `NAMESPACE` in `documents.ts` mirrors the Python, and `RETENTION` in `Results.tsx` mirrors `report.VOD_RETENTION`.
+- **Nothing leaves the browser, and the build enforces it.**
+  - Every built page carries a Content-Security-Policy with `connect-src 'none'`, set in the build only, because Vite's dev server needs inline scripts.
+  - The bundle holds no `fetch`: the modulepreload polyfill is off.
+  - The pages load nothing from elsewhere: system fonts, an inline favicon, no analytics.
+  - Do not add a request to the site.
+- **Recording links only where the link is known.** `recordingAt` handles Twitch and YouTube over https, and nothing else.
+- **Going live is Sam's.** `.github/workflows/pages.yml` runs only when started by hand. Switching Pages on (Settings, Pages, Source: GitHub Actions) and the first public deploy are his. After that, two changes follow:
+  - a push trigger for the workflow;
+  - the checker's address in the report notice. The notice is not signed, but the deal report's `.txt` golden would change, which is a deliberate edit.
+
 ## Publishing (agreed 2026-09-20)
 
 Sam delegated the publishing regime to Claude on 2026-09-20, `main` included. This section is the delegation, because a session starts cold and a rule that is only remembered does not exist.

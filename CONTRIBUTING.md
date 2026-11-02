@@ -32,7 +32,7 @@ Run the suite. It is fast.
 
 ```bash
 npm install
-npm test           # 278 tests
+npm test           # 344 tests
 npm run typecheck
 npm run lint
 node scripts/playtest.mjs

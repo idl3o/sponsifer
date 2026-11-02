@@ -1,0 +1,3 @@
+# Signed bytes are evidence: a line-ending conversion would make a good
+# signature fail. Keep the verifier's fixtures exactly as ssh-keygen signed them.
+src/site/fixtures/** -text
