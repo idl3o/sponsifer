@@ -65,7 +65,7 @@ Checked beyond the suites:
   - A label log of two real sources wrote its session line (one canvas) and a clean `end` on Ctrl+C. While it ran, the app's Start got a 409 naming the terminal and its process. Afterwards the lock was free, and the app's Start was stopped by the older rule that a source shows another deal.
   - A label log of "Sponsor overlay" was refused, and nothing was written.
   - An airtime report was signed with a throwaway SSH key and checked by running the notice's own two lines with stock `ssh-keygen`: good. A tampered copy and the receipt namespace were both refused. Its log was hand-written, because no stream was live.
-  - Still not run: an interval on air, which needs a live stream, and a `setup` press on his OBS.
-- **The real stream cases still unrun:** a live stream and a nested scene.
-- **The release:** 0.2.0 to PyPI waits on the EUIPO and USPTO trademark searches, and it is Sam's step (`docs/RELEASING.md`).
+  - With Sam's agreement, `setup` was pressed for test deal dl-901. Sam then showed the placements and the dock in OBS 33's Chromium 150 and reported them good. The OBS 33 assessment is in `docs/research/obs-33-2026-11.md`.
+- **An interval on air, and a nested scene or group.** No session has yet run either. Recording does not count: the logger reads the stream output only. The research note gives two ways to stream without broadcasting.
+- **The release:** 0.2.0 to PyPI waits on the EUIPO and USPTO trademark searches, and it is Sam's step (`docs/RELEASING.md`). Rehearse as 0.2.0.dev2 first: dev1 predates the soft binding and the OBS 33 changes.
 - **The C2PA soft binding: done the same day, at Sam's request.** The first push of this branch turned CI red, and the cause was not the branch: c2pa-python 0.37.12 and later refuse to sign a `c2pa.watermarked` action without a soft-binding assertion, and every fresh `[seal]` install since 2026-09-24 got such a version. The extra was held at 0.37.10 for one commit. The manifest now declares `c2pa.watermarked.bound` with a `c2pa.soft-binding` naming `com.adobe.trustmark.Q`, and the hold is lifted.
