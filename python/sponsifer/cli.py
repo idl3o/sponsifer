@@ -1,28 +1,36 @@
-"""The `sponsifer` command.
+"""Sponsifer: put a sponsor on stream through OBS, and show they were there.
 
-    sponsifer                     serve the app on this machine
-    sponsifer seal DEAL FILE      establish rights on a won deal, before delivery
-    sponsifer verify FILE         check a downloaded ad against your seals
-    sponsifer log DEAL            record when a deal's overlay was on air, from OBS
+    sponsifer app                 the app, the overlays and the dock, on 127.0.0.1
+    sponsifer status              what OBS has, what is in the program feed, what is on air
+    sponsifer setup DEAL          put a won deal's placements into OBS, through the app
+    sponsifer overlay DEAL        the overlay addresses to paste into OBS
+    sponsifer dock                the dock's address, for OBS's Custom Browser Docks
+    sponsifer log DEAL            record when a deal's placements were on air
     sponsifer report DEAL         sign what the log says was on air, for the sponsor
-    sponsifer key --ssh PATH      choose the SSH key that signs your receipts
-    sponsifer setup               download the watermark model now
+    sponsifer key --ssh PATH      choose the SSH key that signs reports and receipts
+
+  With the seal extra, pipx install 'sponsifer[seal]':
+    sponsifer seal DEAL FILE      watermark and timestamp a deal's asset, before delivery
+    sponsifer verify FILE         check a downloaded ad against your seals
+    sponsifer seal-model          download the watermark model now
+
+Each command's --help says more.
 """
 
 from __future__ import annotations
 
 import argparse
-import getpass
 import importlib.util
 import json
-import os
 import secrets
 import sys
 from datetime import date
 from pathlib import Path
+from typing import Callable
 
-from . import __version__, keys, ledger, manifest, sshsig, workspace
+from . import __version__, keys, ledger, manifest, sshsig, toolkit, workspace
 from .obs import OBS_URL
+from .onair import CONVENTIONAL_SOURCES
 from .timestamp import DEFAULT_TSA
 
 
@@ -34,6 +42,8 @@ def _iso(value: str) -> date:
 
 
 _WORKSPACE_HELP = "the workspace file (default: the one the app saves to, under ~/.sponsifer)"
+_DEAL_HELP = "deal id, shown in the app's Deals and Ads tabs, e.g. dl-104"
+_PORT_HELP = f"the port `sponsifer app` is serving on (default {toolkit.APP_PORT})"
 
 
 def _workspace(args: argparse.Namespace, home: Path) -> Path:
@@ -52,19 +62,66 @@ def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="sponsifer", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--version", action="version", version=f"sponsifer {__version__}")
     sub = parser.add_subparsers(dest="command")
+    _app_command(sub)
+    _obs_commands(sub)
+    _log_commands(sub)
+    _seal_commands(sub)
+    return parser
 
-    serve = sub.add_parser("serve", help="serve the app on 127.0.0.1 (the default)")
-    serve.add_argument("--port", type=int, default=5180)
-    serve.add_argument("--no-browser", action="store_true")
-    serve.add_argument("--workspace", type=Path, help=_WORKSPACE_HELP)
-    serve.add_argument("--api-only", action="store_true", help="serve only /api, for development beside Vite")
-    serve.add_argument("--allow-origin", action="append", default=[], metavar="URL",
-                       help="also accept writes from this origin, e.g. http://localhost:5180 for Vite")
-    serve.add_argument("--obs-url", default=OBS_URL, metavar="URL",
-                       help="where OBS's WebSocket server is listening, for the on-air logger the app can start")
 
-    seal = sub.add_parser("seal", help="watermark and timestamp a deal's asset, before delivery")
-    seal.add_argument("deal", help="deal id, shown in the app's Deals tab, e.g. dl-104")
+def _app_command(sub: argparse._SubParsersAction) -> None:
+    app = sub.add_parser("app", aliases=["serve"], help="the app, the overlays and the dock, on 127.0.0.1")
+    app.add_argument("--port", type=int, default=toolkit.APP_PORT)
+    app.add_argument("--no-browser", action="store_true")
+    app.add_argument("--workspace", type=Path, help=_WORKSPACE_HELP)
+    app.add_argument("--api-only", action="store_true", help="serve only /api, for development beside Vite")
+    app.add_argument("--allow-origin", action="append", default=[], metavar="URL",
+                     help="also accept writes from this origin, e.g. http://localhost:5180 for Vite")
+    app.add_argument("--obs-url", default=OBS_URL, metavar="URL",
+                     help="where OBS's WebSocket server is listening, for the on-air logger the app can start")
+
+
+def _obs_commands(sub: argparse._SubParsersAction) -> None:
+    status = sub.add_parser("status", help="what OBS has, what is in the program feed, what is on air; writes nothing")
+    status.add_argument("--source", action="append", metavar="NAME",
+                        help="a source to look at, by its name in OBS; repeat for several (default: every placement's usual name)")
+    status.add_argument("--url", default=OBS_URL, help="where OBS's WebSocket server is listening")
+
+    setup = sub.add_parser("setup", help="put a won deal's placements into OBS, through the running app")
+    setup.add_argument("deal", help=_DEAL_HELP)
+    setup.add_argument("--port", type=int, default=toolkit.APP_PORT, help=_PORT_HELP)
+
+    overlay = sub.add_parser("overlay", help="the overlay addresses to paste into OBS, by source name")
+    overlay.add_argument("deal", help=_DEAL_HELP)
+    overlay.add_argument("--port", type=int, default=toolkit.APP_PORT, help=_PORT_HELP)
+    overlay.add_argument("--workspace", type=Path, help=_WORKSPACE_HELP)
+
+    dock = sub.add_parser("dock", help="the dock's address, for OBS's Custom Browser Docks")
+    dock.add_argument("--port", type=int, default=toolkit.APP_PORT, help=_PORT_HELP)
+
+
+def _log_commands(sub: argparse._SubParsersAction) -> None:
+    log = sub.add_parser("log", help="record when a deal's placements were on air, from OBS")
+    log.add_argument("deal", help=_DEAL_HELP)
+    log.add_argument("--source", action="append", metavar="NAME",
+                     help="a browser source to watch, by its name in OBS; repeat for several "
+                          "(default: every placement's usual name, watching those OBS has)")
+    log.add_argument("--url", default=OBS_URL, help="where OBS's WebSocket server is listening")
+    log.add_argument("--poll", type=float, default=2.0, help="seconds of quiet before asking OBS directly")
+    log.add_argument("--workspace", type=Path, help=_WORKSPACE_HELP)
+
+    rep = sub.add_parser("report", help="sign a delivery report from the on-air log, for the sponsor")
+    rep.add_argument("deal", help=_DEAL_HELP)
+    rep.add_argument("--vod", default="", help="the recording's address, so the sponsor can open it at the offsets")
+    rep.add_argument("--workspace", type=Path, help=_WORKSPACE_HELP)
+
+    key = sub.add_parser("key", help="choose or show the SSH key that signs reports and receipts")
+    key.add_argument("--ssh", type=Path, help="path to your SSH private key, e.g. ~/.ssh/id_ed25519")
+
+
+def _seal_commands(sub: argparse._SubParsersAction) -> None:
+    seal = sub.add_parser("seal", help="watermark and timestamp a deal's asset, before delivery (seal extra)")
+    seal.add_argument("deal", help=_DEAL_HELP)
     seal.add_argument("file", type=Path, help="the finished asset (PNG, JPEG or WebP)")
     seal.add_argument("--workspace", type=Path, help=_WORKSPACE_HELP)
     seal.add_argument("--source", required=True, choices=sorted(manifest.SOURCE_TYPES),
@@ -74,31 +131,14 @@ def _parser() -> argparse.ArgumentParser:
     seal.add_argument("--no-c2pa", action="store_true", help="skip the C2PA manifest")
     seal.add_argument("--yes", action="store_true", help="skip the typed confirmation, for scripts")
 
-    verify = sub.add_parser("verify", help="check a downloaded ad against your seals")
+    verify = sub.add_parser("verify", help="check a downloaded ad against your seals (seal extra)")
     verify.add_argument("file", type=Path, help="the ad, as downloaded from an ad library")
     verify.add_argument("--started", type=_iso, required=True, help="the date the ad library says it started running")
     verify.add_argument("--seen", type=_iso, default=date.today(), help="the date you saw it still running (default today)")
     verify.add_argument("--source", default="", help="where you found it, e.g. the ad library link")
     verify.add_argument("--workspace", type=Path, help=f"{_WORKSPACE_HELP}; a verified sighting is recorded there")
 
-    log = sub.add_parser("log", help="record when a deal's placement was on air, from OBS")
-    log.add_argument("deal", help="deal id, shown in the app's Deals tab, e.g. dl-104")
-    log.add_argument("--source", action="append", metavar="NAME",
-                     help="a browser source to watch, by its name in OBS; repeat for several "
-                          "(default: every placement's usual name, watching those OBS has)")
-    log.add_argument("--url", default=OBS_URL, help="where OBS's WebSocket server is listening")
-    log.add_argument("--poll", type=float, default=2.0, help="seconds of quiet before asking OBS directly")
-    log.add_argument("--workspace", type=Path, help=_WORKSPACE_HELP)
-
-    rep = sub.add_parser("report", help="sign a delivery report from the on-air log, for the sponsor")
-    rep.add_argument("deal", help="deal id, shown in the app's Deals tab, e.g. dl-104")
-    rep.add_argument("--vod", default="", help="the recording's address, so the sponsor can open it at the offsets")
-    rep.add_argument("--workspace", type=Path, help=_WORKSPACE_HELP)
-
-    key = sub.add_parser("key", help="choose or show the SSH key that signs your receipts")
-    key.add_argument("--ssh", type=Path, help="path to your SSH private key, e.g. ~/.ssh/id_ed25519")
-    sub.add_parser("setup", help="download the watermark model now rather than mid-seal")
-    return parser
+    sub.add_parser("seal-model", help="download the watermark model now rather than mid-seal (seal extra)")
 
 
 #: What the `seal` extra brings, by import name.
@@ -123,7 +163,7 @@ def _seal(args: argparse.Namespace, home: Path) -> int:
 
     path = _workspace(args, home)
     if not path.exists():
-        print(f"Not sealed: there is no workspace at {path}. Run `sponsifer serve` and open the app once, "
+        print(f"Not sealed: there is no workspace at {path}. Run `sponsifer app` and open the app once, "
               "or name an exported file with --workspace.", file=sys.stderr)
         return 1
     try:
@@ -198,11 +238,21 @@ def _verify(args: argparse.Namespace, home: Path) -> int:
     return 0 if finding.kind == "claim" and finding.claim and finding.claim.holds else 2
 
 
-def _log_deal(args: argparse.Namespace, home: Path) -> dict | None:
-    """The deal this log belongs to, or None with the reason printed."""
+def _seal_model() -> int:
+    if not _seal_installed():
+        return 1
+    from .watermark import prefetch
+
+    prefetch()
+    print("Watermark model ready.")
+    return 0
+
+
+def _won_deal(args: argparse.Namespace, home: Path) -> dict | None:
+    """The won deal a command names, or None with the reason printed."""
     path = _workspace(args, home)
     if not path.exists():
-        print(f"No workspace at {path}. Run `sponsifer serve` and open the app once.", file=sys.stderr)
+        print(f"No workspace at {path}. Run `sponsifer app` and open the app once.", file=sys.stderr)
         return None
     deal = workspace.find_deal(workspace.load(path), args.deal)
     if deal is None:
@@ -216,12 +266,9 @@ def _log_deal(args: argparse.Namespace, home: Path) -> dict | None:
 
 def _log(args: argparse.Namespace, home: Path) -> int:
     """Follow OBS and append every on-air transition to the deal's log."""
-    from websockets.sync.client import connect
-
     from . import lock, onair
-    from .obs import Obs
 
-    if _log_deal(args, home) is None:
+    if _won_deal(args, home) is None:
         return 1
     try:
         held = lock.acquire(home, {"deal": args.deal}, "terminal")
@@ -230,7 +277,6 @@ def _log(args: argparse.Namespace, home: Path) -> int:
               "are written twice; stop that one first.", file=sys.stderr)
         return 1
     path = onair.log_path(home, args.deal)
-    password = os.environ.get("OBS_WEBSOCKET_PASSWORD") or getpass.getpass("OBS WebSocket password (blank if none): ") or None
 
     def write(line: dict) -> None:
         onair.append(path, line)
@@ -239,25 +285,25 @@ def _log(args: argparse.Namespace, home: Path) -> int:
     session = onair.Session(args.deal, args.source or list(onair.CONVENTIONAL_SOURCES), write)
     print(f"Watching OBS for {args.deal}. Ctrl+C to stop. Appending to {path}")
     try:
-        with connect(args.url, open_timeout=5) as socket:
-            obs = Obs(socket, session.event)
-            obs.identify(password)
+        with toolkit.open_obs(args.url, session.event) as obs:
             onair.follow(obs, session, args.poll)
     except KeyboardInterrupt:
         session.end()
     except (OSError, RuntimeError) as error:
-        print(f"OBS: {error}. Is the WebSocket server switched on, under Tools?", file=sys.stderr)
+        print(toolkit.sentence(f"OBS: {error}"), file=sys.stderr)
         return 1
     finally:
         held.release()
-    summary = onair.delivery(onair.read_log(path))
-    minutes = summary.total_seconds / 60
-    print(f"\nOn air {minutes:.1f} minutes across {len(summary.intervals)} intervals.")
+    _print_summary(onair.delivery(onair.read_log(path)))
+    return 0
+
+
+def _print_summary(summary) -> None:  # noqa: ANN001 - onair.Delivery, imported lazily
+    print(f"\nOn air {summary.total_seconds / 60:.1f} minutes across {len(summary.intervals)} intervals.")
     for placement in summary.placements:
         print(f"  {placement.source}: {placement.total_seconds / 60:.1f} minutes")
     if summary.disagreements:
         print(f"{summary.disagreements} polls disagreed with OBS's events. The report will say so.")
-    return 0
 
 
 def _write_report(home: Path, deal: dict, delivery, log_path: Path, vod: str, creator: str, signer) -> tuple[dict, list[Path]]:  # noqa: ANN001
@@ -293,7 +339,7 @@ def _report(args: argparse.Namespace, home: Path) -> int:
     from . import onair
     from . import report as reports
 
-    deal = _log_deal(args, home)
+    deal = _won_deal(args, home)
     if deal is None:
         return 1
     log_path = onair.log_path(home, args.deal)
@@ -319,7 +365,7 @@ def _report(args: argparse.Namespace, home: Path) -> int:
 
 
 def _key(args: argparse.Namespace, home: Path) -> int:
-    """Choose or show the SSH key that signs receipts."""
+    """Choose or show the SSH key that signs reports and receipts."""
     try:
         if args.ssh:
             keys.set_key(home, args.ssh.expanduser())
@@ -334,37 +380,45 @@ def _key(args: argparse.Namespace, home: Path) -> int:
     return 0
 
 
+def _app(args: argparse.Namespace, home: Path) -> int:
+    from .serve import serve
+
+    serve(args.workspace or workspace.default_path(home), args.port, open_browser=not args.no_browser,
+          api_only=args.api_only, allowed_origins=frozenset(args.allow_origin), home=home, obs_url=args.obs_url)
+    return 0
+
+
+def _overlay(args: argparse.Namespace, home: Path) -> int:
+    return 1 if _won_deal(args, home) is None else toolkit.overlay(args.port, args.deal)
+
+
+#: Every command, by the name argparse reports for it.
+_COMMANDS: dict[str, Callable[[argparse.Namespace, Path], int]] = {
+    "app": _app,
+    "serve": _app,
+    "status": lambda args, home: toolkit.status(args.url, args.source or list(CONVENTIONAL_SOURCES)),
+    "setup": lambda args, home: toolkit.setup(args.port, args.deal),
+    "overlay": _overlay,
+    "dock": lambda args, home: toolkit.dock(args.port),
+    "log": _log,
+    "report": _report,
+    "key": _key,
+    "seal": _seal,
+    "verify": _verify,
+    "seal-model": lambda args, home: _seal_model(),
+}
+
+
+def _run(args: argparse.Namespace, home: Path) -> int:
+    """The command's exit code. A bare `sponsifer` lists the tools."""
+    if args.command is None:
+        print(__doc__)
+        return 0
+    return _COMMANDS[args.command](args, home)
+
+
 def main(argv: list[str] | None = None) -> None:
     """Entry point."""
     sys.stdout.reconfigure(encoding="utf-8")
     args = _parser().parse_args(argv)
-    home = ledger.home_dir()
-    if args.command in (None, "serve"):
-        from .serve import serve
-
-        serve(
-            getattr(args, "workspace", None) or workspace.default_path(home),
-            getattr(args, "port", 5180),
-            open_browser=not getattr(args, "no_browser", False),
-            api_only=getattr(args, "api_only", False),
-            allowed_origins=frozenset(getattr(args, "allow_origin", [])),
-            home=home,
-            obs_url=getattr(args, "obs_url", OBS_URL),
-        )
-    elif args.command == "seal":
-        sys.exit(_seal(args, home))
-    elif args.command == "verify":
-        sys.exit(_verify(args, home))
-    elif args.command == "log":
-        sys.exit(_log(args, home))
-    elif args.command == "report":
-        sys.exit(_report(args, home))
-    elif args.command == "key":
-        sys.exit(_key(args, home))
-    elif args.command == "setup":
-        if not _seal_installed():
-            sys.exit(1)
-        from .watermark import prefetch
-
-        prefetch()
-        print("Watermark model ready.")
+    sys.exit(_run(args, ledger.home_dir()))

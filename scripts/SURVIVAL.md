@@ -6,7 +6,7 @@ It takes about an hour, needs no special access, and is worth repeating when a p
 
 ## What you need
 
-- `pipx install 'sponsifer[seal]'` and `sponsifer setup`.
+- `pipx install 'sponsifer[seal]'` and `sponsifer seal-model`.
 - Two or three finished images of the kind you actually deliver, in the aspect ratios you deliver them.
 - An account on each platform you want to test. A test ad needs a small spend, and a few pounds will do.
 

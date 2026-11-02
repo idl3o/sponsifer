@@ -18,7 +18,8 @@ PYTHON_DIR = Path(__file__).resolve().parents[1]
 
 #: Every module a base-install command reaches before it does any work.
 BASE_MODULES = ("cli", "api", "serve", "runner", "obs", "obs_setup", "onair", "report", "workspace",
-                "keys", "sshsig", "receipt", "ledger", "manifest", "brand", "timestamp", "lock")
+                "keys", "sshsig", "receipt", "ledger", "manifest", "brand", "timestamp", "lock",
+                "status", "client", "toolkit")
 
 #: Import names the `seal` extra provides, and what they pull in.
 SEAL_ONLY = ("PIL", "imagehash", "c2pa", "rfc3161ng", "pyasn1", "trustmark", "torch", "numpy")

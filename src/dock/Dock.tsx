@@ -113,7 +113,7 @@ function Empty({ reached }: { reached: boolean }) {
     <p className="note dock-empty">No won deal waiting to be delivered. Record one in the app, and it appears here.</p>
   ) : (
     <p className="note dock-empty">
-      Waiting for Sponsifer. Is <code>sponsifer serve</code> running?
+      Waiting for Sponsifer. Is <code>sponsifer app</code> running?
     </p>
   );
 }

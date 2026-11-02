@@ -6,7 +6,7 @@ import { parseWorkspace, type Workspace } from '../domain/workspace';
  * The HTTP edge of the workspace file: one request per function, each turned
  * into a plain result. Nothing here decides what to do with the answer; that
  * is `sync.ts`. Everything goes to the page's own origin, which is either
- * `sponsifer serve` or Vite proxying to it. There is no other server.
+ * `sponsifer app` or Vite proxying to it. There is no other server.
  */
 
 /** What reading the workspace file found. */

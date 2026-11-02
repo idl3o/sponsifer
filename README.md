@@ -98,9 +98,9 @@ npm run bundle                 # build the app into the Python package
 pipx install .                 # the app and the CLI, without the watermark
 pipx install --force ".[seal]" # or with it: adds PyTorch, several hundred MB
 
-sponsifer                    # serves the app at http://127.0.0.1:5180
+sponsifer app                # serves the app at http://127.0.0.1:5180
 sponsifer key --ssh ~/.ssh/id_ed25519   # sign receipts with your SSH key
-sponsifer setup              # fetch the watermark model once, ahead of time
+sponsifer seal-model         # fetch the watermark model once, ahead of time
 sponsifer seal dl-104 reel.png --source capture
 sponsifer verify ad.jpg --started 2026-10-01
 

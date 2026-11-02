@@ -157,7 +157,7 @@ async function writeOnce(s: Session, replaceUnreadable: boolean): Promise<boolea
     case 'offline':
       status({
         mode: 'browser-only',
-        notice: 'The server stopped. Edits are kept in this browser, and reach the file when you restart `sponsifer serve` and reload.',
+        notice: 'The server stopped. Edits are kept in this browser, and reach the file when you restart `sponsifer app` and reload.',
       });
       return false;
   }

@@ -31,6 +31,10 @@ HELLO, IDENTIFY, IDENTIFIED, EVENT, REQUEST, RESPONSE = 0, 1, 2, 5, 6, 7
 #: Where OBS's WebSocket server listens unless the creator moved it.
 OBS_URL = "ws://127.0.0.1:4455"
 
+#: What `Obs.identify` raises when OBS asks for a password and none was given,
+#: so a caller can ask for one only when OBS does.
+NEEDS_PASSWORD = "OBS requires a password"
+
 
 def auth_string(password: str, salt: str, challenge: str) -> str:
     """obs-websocket 5 authentication: base64(sha256(base64(sha256(password + salt)) + challenge))."""
@@ -100,7 +104,7 @@ class Obs:
         auth = hello["d"].get("authentication")
         if auth:
             if password is None:
-                raise RuntimeError("OBS requires a password")
+                raise RuntimeError(NEEDS_PASSWORD)
             d["authentication"] = auth_string(password, auth["salt"], auth["challenge"])
         self._socket.send(json.dumps({"op": IDENTIFY, "d": d}))
         identified = json.loads(self._socket.recv())

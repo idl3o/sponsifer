@@ -78,7 +78,7 @@ function SyncLine() {
       {mode === 'browser-only' && (
         <span
           className="pill"
-          title="Run `sponsifer serve` and reload to keep the workspace in a file that OBS and the CLI can read."
+          title="Run `sponsifer app` and reload to keep the workspace in a file that OBS and the CLI can read."
         >
           Saved in this browser only
         </span>

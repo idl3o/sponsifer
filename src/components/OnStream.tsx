@@ -118,7 +118,7 @@ export function OnStream({ deal }: { deal: Deal }) {
       <div className="row" style={{ marginBottom: 8 }}>
         <Button
           disabled={!served}
-          title={served ? url : 'Needs `sponsifer serve`: OBS keeps its own browser storage, so the overlay reads the workspace file.'}
+          title={served ? url : 'Needs `sponsifer app`: OBS keeps its own browser storage, so the overlay reads the workspace file.'}
           onClick={() => void copyText(url).then(setCopied)}
         >
           {copied ? 'Copied' : 'Copy OBS URL'}

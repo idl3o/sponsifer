@@ -58,7 +58,7 @@ Ed25519 SSH signatures are produced and checked in `python/sponsifer/sshsig.py` 
 
 Sealing sends one SHA-256 digest to an RFC 3161 timestamp authority, DigiCert's free one by default. The digest reveals nothing about the deal, because the receipt is salted. The call happens only when the creator has chosen to seal, and the confirmation says so before it happens. A creator who never seals never makes it.
 
-That is the only call carrying anything derived from the creator's data. The one other network access is a one-off download of TrustMark's model weights from Adobe's host, the first time the watermark is used. It sends nothing about the creator, and `sponsifer setup` does it deliberately, ahead of time, rather than in the middle of a seal.
+That is the only call carrying anything derived from the creator's data. The one other network access is a one-off download of TrustMark's model weights from Adobe's host, the first time the watermark is used. It sends nothing about the creator, and `sponsifer seal-model` does it deliberately, ahead of time, rather than in the middle of a seal.
 
 ## Disclosed, not covert
 

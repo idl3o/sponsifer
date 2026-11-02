@@ -8,7 +8,7 @@ import { SAMPLE_PROFILE, SAMPLE_PROSPECTS } from './sample';
 import { SEEN_KEY, startSync, syncStatus, type SyncTarget } from './sync';
 
 /**
- * The sync against an in-memory stand-in for `sponsifer serve`, which keeps
+ * The sync against an in-memory stand-in for `sponsifer app`, which keeps
  * the same rules: an ETag per revision, compare-and-swap writes, 404 with
  * `missing` when there is no file, 422 when the file is not JSON.
  */

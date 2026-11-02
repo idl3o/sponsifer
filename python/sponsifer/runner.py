@@ -35,13 +35,11 @@ from typing import Any, Callable, TypeVar
 from urllib.parse import urlsplit
 
 from . import lock, onair
+from .obs import NEEDS_PASSWORD as _NEEDS_PASSWORD
 from .obs import OBS_URL, Obs, utc_now
 
 #: Opens the socket to OBS. Replaced in tests by one that opens a fake.
 Connect = Callable[[str], AbstractContextManager[Any]]
-
-#: `Obs.identify` raises this message when OBS asks for a password and none was given.
-_NEEDS_PASSWORD = "OBS requires a password"
 
 
 T = TypeVar("T")

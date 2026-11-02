@@ -312,7 +312,7 @@ function workspaceActions(set: SetState): Pick<Actions, 'setTab' | 'importAll' |
 /**
  * Application state.
  *
- * The workspace file that `sponsifer serve` owns is the source of truth, and
+ * The workspace file that `sponsifer app` owns is the source of truth, and
  * `sync.ts` keeps this store and the file in step. This browser's copy is a
  * cache, and the whole save when the app runs without the server.
  *
