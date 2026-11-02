@@ -54,3 +54,4 @@ The suites stand at 278 vitest and 268 pytest. They also pass on a base install 
 - **Against Sam's real OBS:** `status`; a label log of a real source; a report checked with stock `ssh-keygen`; and a terminal logger refusing the app's Start. OBS was not running on this machine during the build.
 - **The real stream cases still unrun:** a live stream and a nested scene.
 - **The release:** 0.2.0 to PyPI waits on the EUIPO and USPTO trademark searches, and it is Sam's step (`docs/RELEASING.md`).
+- **The C2PA soft binding.** The first push of this branch turned CI red. It was not the branch: c2pa-python 0.37.12 and later refuse to sign a `c2pa.watermarked` action without a soft-binding assertion, and every fresh `[seal]` install since 2026-09-24 got such a version. The extra is held at 0.37.10. The lasting fix is a soft-binding assertion naming TrustMark, which is a provenance decision.
