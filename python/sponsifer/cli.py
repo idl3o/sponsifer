@@ -101,22 +101,26 @@ def _parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _watermark_installed() -> bool:
+#: What the `seal` extra brings, by import name.
+_SEAL_MODULES = ("trustmark", "PIL", "imagehash", "c2pa", "rfc3161ng")
+
+
+def _seal_installed() -> bool:
     """Checked before any prompt, so a missing extra never surfaces mid-seal."""
-    if importlib.util.find_spec("trustmark") is not None:
+    if all(importlib.util.find_spec(name) is not None for name in _SEAL_MODULES):
         return True
-    print("Sealing and verifying need the watermark model, which is an optional extra because it brings "
-          "PyTorch with it. Install it with:\n  pipx install --force 'sponsifer[seal]'", file=sys.stderr)
+    print("Sealing and verifying need the `seal` extra: the watermark model, which brings PyTorch with it, "
+          "and the imaging and C2PA libraries. Install it with:\n  pipx install --force 'sponsifer[seal]'", file=sys.stderr)
     return False
 
 
 def _seal(args: argparse.Namespace, home: Path) -> int:
+    if not _seal_installed():  # before the imports, which need the extra
+        return 1
     from . import sealing
     from .timestamp import remote
     from .watermark import TrustMarkWatermarker
 
-    if not _watermark_installed():
-        return 1
     path = _workspace(args, home)
     if not path.exists():
         print(f"Not sealed: there is no workspace at {path}. Run `sponsifer serve` and open the app once, "
@@ -181,11 +185,11 @@ def _print_finding(finding) -> None:  # noqa: ANN001 - Finding, imported lazily
 
 
 def _verify(args: argparse.Namespace, home: Path) -> int:
+    if not _seal_installed():  # before the imports, which need the extra
+        return 1
     from .verifying import record_sighting, verify
     from .watermark import TrustMarkWatermarker
 
-    if not _watermark_installed():
-        return 1
     finding = verify(args.file, args.started, args.seen, TrustMarkWatermarker(), home)
     _print_finding(finding)
     path = _workspace(args, home)
@@ -350,7 +354,7 @@ def main(argv: list[str] | None = None) -> None:
     elif args.command == "key":
         sys.exit(_key(args, home))
     elif args.command == "setup":
-        if not _watermark_installed():
+        if not _seal_installed():
             sys.exit(1)
         from .watermark import prefetch
 

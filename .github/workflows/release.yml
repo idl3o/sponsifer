@@ -43,7 +43,8 @@ jobs:
         with:
           python-version: "3.12"
       - run: python -m pip install --upgrade pip build twine
-      - run: python -m pip install . pytest
+      # The sealing tests need the seal extra's libraries; `dev` carries them without PyTorch.
+      - run: python -m pip install ".[dev]"
       - run: python -m pytest
 
       - name: Tag, package and app versions agree

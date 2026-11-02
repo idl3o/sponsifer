@@ -13,8 +13,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Callable
 
-import rfc3161ng
-from pyasn1.codec.der import decoder, encoder
+# rfc3161ng and pyasn1 are imported where they are used: they come with the
+# `seal` extra, and the CLI reads DEFAULT_TSA in a base install that has neither.
 
 #: DigiCert's public timestamp authority: free, no account, widely trusted.
 DEFAULT_TSA = "http://timestamp.digicert.com"
@@ -43,6 +43,8 @@ Timestamper = Callable[[bytes], Stamp]
 def remote(url: str = DEFAULT_TSA) -> Timestamper:
     """A timestamper that asks a real RFC 3161 authority."""
 
+    import rfc3161ng
+
     def stamp(digest: bytes) -> Stamp:
         client = rfc3161ng.RemoteTimestamper(url, hashname="sha256", include_tsa_certificate=True, timeout=20)
         token = client.timestamp(digest=digest)
@@ -53,11 +55,16 @@ def remote(url: str = DEFAULT_TSA) -> Timestamper:
 
 def token_time(token: bytes) -> datetime:
     """The time the authority asserts, timezone-aware."""
+    import rfc3161ng
+
     return rfc3161ng.get_timestamp(token, naive=False)
 
 
 def token_digest(token: bytes) -> bytes:
     """The digest the token covers, read from its message imprint."""
+    import rfc3161ng
+    from pyasn1.codec.der import decoder
+
     parsed = decoder.decode(token, asn1Spec=rfc3161ng.TimeStampToken())[0]
     return bytes(parsed.tst_info["messageImprint"]["hashedMessage"])
 
@@ -69,6 +76,9 @@ def token_valid(token: bytes, digest: bytes) -> bool:
     that certificate; it does not walk the chain to a trusted root, and the
     output of `verify` says so.
     """
+    import rfc3161ng
+    from pyasn1.codec.der import decoder, encoder
+
     if token_digest(token) != digest:
         return False
     parsed = decoder.decode(token, asn1Spec=rfc3161ng.TimeStampToken())[0]

@@ -45,8 +45,22 @@ def test_serve_takes_a_workspace_an_api_only_mode_and_extra_origins():
     assert (plain.api_only, plain.allow_origin, plain.workspace) == (False, [], None)
 
 
+@pytest.mark.parametrize(
+    "argv",
+    [("seal", "dl-104", "reel.png", "--source", "capture"), ("verify", "ad.jpg", "--started", "2026-10-01")],
+    ids=["seal", "verify"],
+)
+def test_without_the_extra_seal_and_verify_say_how_to_get_it_rather_than_raising(argv, tmp_path, capsys, monkeypatch):
+    """In a base install the import of the sealing modules would fail, so the check comes first."""
+    monkeypatch.setattr(cli.importlib.util, "find_spec", lambda name: None)
+    command = cli._seal if argv[0] == "seal" else cli._verify
+    assert command(parse(*argv), tmp_path) == 1
+    assert "sponsifer[seal]" in capsys.readouterr().err
+
+
 def test_sealing_says_where_the_workspace_should_be_rather_than_raising(tmp_path, capsys, monkeypatch):
-    monkeypatch.setattr(cli, "_watermark_installed", lambda: True)
+    pytest.importorskip("PIL", reason="needs the seal extra, which the base-install CI job leaves out")
+    monkeypatch.setattr(cli, "_seal_installed", lambda: True)
     home = tmp_path / "home"
     args = parse("seal", "dl-104", str(tmp_path / "reel.png"), "--source", "capture")
     assert cli._seal(args, home) == 1

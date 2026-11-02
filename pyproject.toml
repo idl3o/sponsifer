@@ -24,21 +24,24 @@ classifiers = [
   "Topic :: Office/Business :: Financial",
   "Topic :: Security :: Cryptography",
 ]
+# The base install is the OBS toolkit: the app, the overlays, the dock, the
+# logger and the signed report. Signing needs cryptography; the logger needs
+# OBS's WebSocket. Nothing else, so a streamer does not install an imaging
+# stack to log a stream. `test_imports.py` and CI's python-base job hold it.
 dependencies = [
-  "pillow>=10",
   "cryptography>=42",
-  "rfc3161ng>=2.1",
-  "imagehash>=4.3",
-  "c2pa-python>=0.37",
   # OBS's WebSocket, for the on-air log. Pure Python, no build step.
   "websockets>=13",
 ]
 
 [project.optional-dependencies]
-# TrustMark pulls in PyTorch, several hundred megabytes. Serving the app and
-# checking receipts do not need it; sealing and decoding a watermark do.
-seal = ["trustmark>=0.9.2"]
-dev = ["pytest>=8", "markdown>=3.5"]
+# Sealing and verifying a delivered file. TrustMark pulls in PyTorch, several
+# hundred megabytes; the rest read images, write C2PA and ask a timestamp
+# authority, which only `seal` and `verify` do.
+seal = ["trustmark>=0.9.2", "pillow>=10", "imagehash>=4.3", "c2pa-python>=0.37", "rfc3161ng>=2.1"]
+# The seal extra without TrustMark: the tests fake the watermark, so CI never
+# installs PyTorch.
+dev = ["pytest>=8", "markdown>=3.5", "pillow>=10", "imagehash>=4.3", "c2pa-python>=0.37", "rfc3161ng>=2.1"]
 
 [project.scripts]
 sponsifer = "sponsifer.cli:main"
