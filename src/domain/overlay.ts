@@ -1,5 +1,5 @@
 import { emblemView, type EmblemView, type PlacementKind } from './emblem';
-import type { Workspace } from './workspace';
+import type { Stage } from './stage';
 
 /**
  * What an OBS browser source draws for a won deal: one placement, composed in
@@ -9,8 +9,8 @@ import type { Workspace } from './workspace';
 export type OverlayView = EmblemView;
 
 /** The placement for a deal: only a won deal is on air. Null for a lost or unknown deal. */
-export function overlayFor(workspace: Workspace, dealId: string, kind: PlacementKind = 'emblem'): OverlayView | null {
-  return emblemView(workspace, dealId, kind);
+export function overlayFor(stage: Stage, dealId: string, kind: PlacementKind = 'emblem'): OverlayView | null {
+  return emblemView(stage, dealId, kind);
 }
 
 /**

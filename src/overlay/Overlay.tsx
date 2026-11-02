@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { EmblemBadge } from '../components/emblem/EmblemBadge';
 import type { PlacementKind } from '../domain/emblem';
 import { overlayFor, type OverlayView } from '../domain/overlay';
-import { fetchRemote, type Fetch } from '../store/workspaceClient';
+import { fetchStage, type Fetch } from '../store/serverClient';
 
 /**
  * The sponsor overlay, as OBS shows it on stream.
@@ -46,10 +46,10 @@ export function Overlay({
     let etag: string | null = null;
     let cancelled = false;
     const read = async () => {
-      const remote = await fetchRemote(fetcher, etag);
+      const remote = await fetchStage(fetcher, etag);
       if (cancelled || remote.kind !== 'ok') return;
       etag = remote.etag;
-      setView(overlayFor(remote.workspace, dealId, kind));
+      setView(overlayFor(remote.value, dealId, kind));
     };
     void read();
     const timer = setInterval(() => void read(), pollMs);

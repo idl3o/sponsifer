@@ -1,6 +1,6 @@
 import { assertNever } from './assert';
+import type { Stage } from './stage';
 import type { EmblemCorner, EmblemShape, EmblemStyle, SponsorArt, Wording } from './types';
-import type { Workspace } from './workspace';
 
 /**
  * The sponsor emblem on stream: the creator's house style composed with the
@@ -122,11 +122,11 @@ export function lineFor(wording: Wording, brand: string): string {
  * unknown deal. `bareLogo` belongs to the corner emblem alone; a band, a slate
  * or a card with no words on it says nothing.
  */
-export function emblemView(workspace: Workspace, dealId: string, kind: PlacementKind = 'emblem'): EmblemView | null {
-  const deal = workspace.deals.find((d) => d.id === dealId);
+export function emblemView(stage: Stage, dealId: string, kind: PlacementKind = 'emblem'): EmblemView | null {
+  const deal = stage.deals.find((d) => d.id === dealId);
   if (!deal || deal.outcome !== 'won') return null;
   const art = deal.sponsorArt ?? DEFAULT_ART;
-  const style = { ...workspace.emblem, accent: art.accent ?? workspace.emblem.accent };
+  const style = { ...stage.emblem, accent: art.accent ?? stage.emblem.accent };
   return {
     kind,
     disclosure: 'Ad',

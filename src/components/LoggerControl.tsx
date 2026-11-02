@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { loggerSentence, type LoggerStatus } from '../domain/onair';
-import { fetchLogger, startLogger, stopLogger, type Fetch, type Logger } from '../store/workspaceClient';
+import { fetchLogger, startLogger, stopLogger, type Fetch, type Logger } from '../store/serverClient';
 import { Button } from './ui/Primitives';
 
 export interface LoggerState {

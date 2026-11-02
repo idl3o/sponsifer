@@ -23,8 +23,8 @@ export const CTA_OPTIONS = ['License this moment', 'License this clip', 'Use thi
 export const ACCENT_OPTIONS = ['#e2b658', '#5fc3d4', '#6fcf97'] as const;
 export const PATTERN_RANGE = { min: 0.04, max: 0.3 } as const;
 
-/** The largest uploaded image kept, as a data URL, in characters. About 300 KB of PNG. */
-export const MAX_IMAGE_CHARS = 400_000;
+// The image cap is shared with the sponsor art, and lives with the parser that enforces it.
+export { MAX_IMAGE_CHARS } from './parse';
 
 export const DEFAULT_BOARD: BoardSpec = {
   mark: 'monogram',

@@ -6,7 +6,7 @@ import {
   PLACEMENT_STATE_LABEL, dockDeals, dockView, pickDockDeal, type DockDeal, type DockPlacement, type PlacementState,
 } from '../domain/dock';
 import { clockOf, onAirSentence, placementSentence, reportSentence } from '../domain/onair';
-import { fetchOnAir, fetchRemote, type Fetch, type OnAir } from '../store/workspaceClient';
+import { fetchOnAir, fetchStage, type Fetch, type OnAir } from '../store/serverClient';
 
 /**
  * The deal panel, inside OBS.
@@ -48,12 +48,12 @@ function useReading(fetcher: Fetch, pollMs: number): Reading {
     let cancelled = false;
     const read = async () => {
       if (document.visibilityState === 'hidden') return;
-      const remote = await fetchRemote(fetcher, etag);
+      const remote = await fetchStage(fetcher, etag);
       if (cancelled) return;
       if (remote.kind === 'ok') etag = remote.etag;
       setReading((was) => ({
         // An unchanged file keeps the deals already read; only a fresh read replaces them.
-        deals: remote.kind === 'ok' ? dockDeals(remote.workspace) : remote.kind === 'missing' ? [] : was.deals,
+        deals: remote.kind === 'ok' ? dockDeals(remote.value) : remote.kind === 'missing' ? [] : was.deals,
         reached: remote.kind !== 'offline',
         tick: was.tick + 1,
       }));

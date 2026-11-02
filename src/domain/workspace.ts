@@ -1,9 +1,10 @@
 import { PRODUCT } from '../brand';
 import { FORMATS_BY_PLATFORM, NICHE_LABEL } from './benchmarks';
-import { DEFAULT_BOARD, MAX_IMAGE_CHARS, PATTERN_RANGE } from './board';
+import { DEFAULT_BOARD, PATTERN_RANGE } from './board';
 import { paidDaysFor } from './deals';
-import { DEFAULT_ART, DEFAULT_EMBLEM, EMBLEM_INSET, EMBLEM_SIZE } from './emblem';
+import { HEX_COLOUR, Invalid, arr, bool, num, obj, oneOf, parseImage, str } from './parse';
 import { DEFAULT_TERMS } from './pricing';
+import { parseEmblem, parseSponsorArt } from './stage';
 import type {
   BoardSpec,
   Channel,
@@ -19,7 +20,6 @@ import type {
   ProofPoint,
   SealSummary,
   Sighting,
-  SponsorArt,
   UsageRights,
 } from './types';
 
@@ -51,48 +51,6 @@ export interface Workspace {
 }
 
 export type ParseResult = { ok: true; workspace: Workspace } | { ok: false; error: string };
-
-/** Thrown inside the parser and caught at its edge, carrying a readable path. */
-class Invalid extends Error {}
-
-type Obj = Record<string, unknown>;
-
-function obj(value: unknown, path: string): Obj {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
-    throw new Invalid(`${path} should be an object`);
-  }
-  return value as Obj;
-}
-
-function arr(value: unknown, path: string): unknown[] {
-  if (!Array.isArray(value)) throw new Invalid(`${path} should be a list`);
-  return value;
-}
-
-function str(value: unknown, path: string, fallback?: string): string {
-  if (value === undefined && fallback !== undefined) return fallback;
-  if (typeof value !== 'string') throw new Invalid(`${path} should be text`);
-  return value;
-}
-
-function num(value: unknown, path: string, fallback?: number): number {
-  if (value === undefined && fallback !== undefined) return fallback;
-  if (typeof value !== 'number' || !Number.isFinite(value)) {
-    throw new Invalid(`${path} should be a number`);
-  }
-  return value;
-}
-
-function bool(value: unknown, path: string, fallback?: boolean): boolean {
-  if (value === undefined && fallback !== undefined) return fallback;
-  if (typeof value !== 'boolean') throw new Invalid(`${path} should be true or false`);
-  return value;
-}
-
-function oneOf<T extends string>(value: unknown, allowed: readonly T[], path: string): T {
-  if (typeof value === 'string' && (allowed as readonly string[]).includes(value)) return value as T;
-  throw new Invalid(`${path} should be one of ${allowed.join(', ')}`);
-}
 
 const PLATFORMS = Object.keys(FORMATS_BY_PLATFORM) as Platform[];
 const FORMATS = [...new Set(Object.values(FORMATS_BY_PLATFORM).flat())] as Format[];
@@ -225,18 +183,6 @@ function parseSighting(value: unknown, path: string): Sighting {
   };
 }
 
-const IMAGE_URL = /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/;
-const HEX_COLOUR = /^#[0-9a-f]{6}$/i;
-
-/** The uploaded image: a PNG, JPEG or WebP data URL within the size cap, or empty. */
-function parseImage(value: unknown, path: string): string {
-  const image = str(value, path, '');
-  if (image && (!IMAGE_URL.test(image) || image.length > MAX_IMAGE_CHARS)) {
-    throw new Invalid(`${path} should be a PNG, JPEG or WebP image under ${Math.round(MAX_IMAGE_CHARS / 1000)} KB`);
-  }
-  return image;
-}
-
 /** The shop board. Absent before format 4, when it takes the defaults. */
 function parseBoard(value: unknown): BoardSpec {
   if (value === undefined) return { ...DEFAULT_BOARD };
@@ -258,49 +204,6 @@ function parseBoard(value: unknown): BoardSpec {
     vertical: oneOf(o.vertical ?? d.vertical, ['upper-left', 'middle-left', 'bottom'] as const, 'board.vertical'),
     accent,
     pattern: Math.min(PATTERN_RANGE.max, Math.max(PATTERN_RANGE.min, pattern)),
-  };
-}
-
-const CORNERS = ['top-left', 'top-right', 'bottom-left', 'bottom-right'] as const;
-const SHAPES = ['pill', 'rounded', 'square'] as const;
-const WORDINGS = ['sponsored-by', 'powered-by', 'with-thanks-to', 'brand-only'] as const;
-
-function colour(value: unknown, path: string, fallback: string): string {
-  const c = str(value, path, fallback);
-  if (!HEX_COLOUR.test(c)) throw new Invalid(`${path} should be a colour like #e2b658`);
-  return c;
-}
-
-/** The stream emblem's house style. Absent before format 5, when it takes the defaults. */
-function parseEmblem(value: unknown): EmblemStyle {
-  if (value === undefined) return { ...DEFAULT_EMBLEM };
-  const o = obj(value, 'emblem');
-  const d = DEFAULT_EMBLEM;
-  const reshow = num(o.reshowEveryMinutes, 'emblem.reshowEveryMinutes', d.reshowEveryMinutes);
-  return {
-    corner: oneOf(o.corner ?? d.corner, CORNERS, 'emblem.corner'),
-    inset: Math.min(EMBLEM_INSET.max, Math.max(EMBLEM_INSET.min, num(o.inset, 'emblem.inset', d.inset))),
-    size: Math.min(EMBLEM_SIZE.max, Math.max(EMBLEM_SIZE.min, num(o.size, 'emblem.size', d.size))),
-    accent: colour(o.accent, 'emblem.accent', d.accent),
-    background: colour(o.background, 'emblem.background', d.background),
-    text: colour(o.text, 'emblem.text', d.text),
-    shape: oneOf(o.shape ?? d.shape, SHAPES, 'emblem.shape'),
-    bareLogo: bool(o.bareLogo, 'emblem.bareLogo', d.bareLogo),
-    entrance: bool(o.entrance, 'emblem.entrance', d.entrance),
-    reshowEveryMinutes: Math.max(0, reshow),
-  };
-}
-
-/** A deal's sponsor art. Null, and absent before format 5, means none yet. */
-function parseSponsorArt(value: unknown, path: string): SponsorArt | null {
-  if (value === undefined || value === null) return null;
-  const o = obj(value, path);
-  const accent = o.accent === null || o.accent === undefined ? null : colour(o.accent, `${path}.accent`, DEFAULT_EMBLEM.accent);
-  return {
-    image: parseImage(o.image, `${path}.image`),
-    imageAspect: Math.max(0, num(o.imageAspect, `${path}.imageAspect`, DEFAULT_ART.imageAspect)),
-    wording: oneOf(o.wording ?? DEFAULT_ART.wording, WORDINGS, `${path}.wording`),
-    accent,
   };
 }
 

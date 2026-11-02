@@ -14,7 +14,7 @@
 
 import { PLACEMENTS, type PlacementKind } from './emblem';
 import type { LoggerStatus } from './onair';
-import type { Workspace } from './workspace';
+import type { Stage } from './stage';
 
 /** A deal a stream could be for, as the dock's chooser lists it. */
 export interface DockDeal {
@@ -51,8 +51,8 @@ export interface DockView {
 }
 
 /** Won deals not yet delivered, the most recently closed first: the ones a stream could be for. */
-export function dockDeals(workspace: Workspace): DockDeal[] {
-  return workspace.deals
+export function dockDeals(stage: Stage): DockDeal[] {
+  return stage.deals
     .filter((deal) => deal.outcome === 'won' && deal.deliveredOn === '')
     .slice()
     .sort((a, b) => b.closedOn.localeCompare(a.closedOn) || b.id.localeCompare(a.id))

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { setupSentence } from '../domain/obsSetup';
-import { setupObs, type Fetch, type ObsSetup } from '../store/workspaceClient';
+import { setupObs, type Fetch, type ObsSetup } from '../store/serverClient';
 import { PasswordField } from './LoggerControl';
 import { Button } from './ui/Primitives';
 
