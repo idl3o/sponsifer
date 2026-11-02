@@ -31,7 +31,7 @@ from dataclasses import dataclass
 from typing import Any, Literal
 from urllib.parse import parse_qs, urlsplit
 
-from .obs import Obs
+from .obs import Obs, program_scene
 from .onair import PLACEMENT_KINDS, deal_shown
 
 BROWSER_SOURCE = "browser_source"
@@ -93,7 +93,7 @@ def setup(obs: Obs, port: int, deal_id: str) -> Result:
     """Make OBS show this deal in every conventional source, and say what that took."""
     inputs = obs.request("GetInputList").get("inputs") or []
     kinds = {item.get("inputName"): item.get("unversionedInputKind") or item.get("inputKind") for item in inputs}
-    scene = str(obs.request("GetCurrentProgramScene").get("currentProgramSceneName", ""))
+    scene = program_scene(obs)
     steps = tuple(_decide(obs, source, kinds.get(source), port, deal_id) for source in PLACEMENT_KINDS)
 
     video: dict[str, Any] | None = None

@@ -24,7 +24,7 @@ from dataclasses import dataclass
 from typing import Callable, Literal, Sequence
 from urllib.parse import urlsplit
 
-from .obs import Obs, canvas_count
+from .obs import Obs, canvas_count, program_scene
 from .onair import deal_shown
 
 #: Whether an overlay's server answered. None makes no claim: not a local address, or not an overlay.
@@ -65,7 +65,7 @@ def look(obs: Obs, names: Sequence[str], answers: Answers) -> View:
     inputs = obs.request("GetInputList").get("inputs") or []
     kinds = {item.get("inputName"): item.get("unversionedInputKind") or item.get("inputKind") for item in inputs}
     live = bool(obs.request("GetStreamStatus").get("outputActive"))
-    scene = str(obs.request("GetCurrentProgramScene").get("currentProgramSceneName", ""))
+    scene = program_scene(obs)
     return View(str(version.get("obsVersion", "?")), str(version.get("obsWebSocketVersion", "?")), live, scene,
                 canvas_count(obs), tuple(_source(obs, name, kinds, live, answers) for name in names))
 

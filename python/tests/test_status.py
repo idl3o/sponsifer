@@ -113,6 +113,20 @@ def test_a_second_canvas_is_named_with_what_it_costs_the_log(canvases, words):
     assert status.lines(look(wired(canvases=canvases)))[1] == words
 
 
+@pytest.mark.parametrize("answer, scene", [
+    ({"sceneName": "Gameplay", "currentProgramSceneName": "Gameplay"}, "Gameplay"),   # obs-websocket 5.7
+    ({"sceneName": "Gameplay"}, "Gameplay"),                                           # once the old field is removed
+    ({"currentProgramSceneName": "Gameplay"}, "Gameplay"),                             # an older server
+])
+def test_the_program_scene_is_read_from_the_current_field_and_the_deprecated_one(answer, scene):
+    class Answers:
+        def request(self, request_type: str, data: dict | None = None) -> dict:
+            assert request_type == "GetCurrentProgramScene"
+            return answer
+
+    assert obs.program_scene(Answers()) == scene
+
+
 def test_an_obs_without_canvases_is_unknown_not_one():
     class Refuses:
         def request(self, request_type: str, data: dict | None = None) -> dict:
@@ -201,4 +215,6 @@ def test_a_wrong_password_and_an_absent_obs_are_said_plainly(capsys, monkeypatch
         assert toolkit.status(url, NAMES) == 1
     assert capsys.readouterr().err.strip() == "OBS did not accept that password."
     assert toolkit.status(url, NAMES) == 1   # the stand-in has gone
-    assert "Is its WebSocket server switched on, under Tools?" in capsys.readouterr().err
+    error = capsys.readouterr().err
+    assert "Is its WebSocket server switched on, under Tools?" in error
+    assert "OBS does not start it in Safe Mode." in error, "OBS 33's Safe Mode leaves the server off"

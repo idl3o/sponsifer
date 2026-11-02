@@ -18,7 +18,7 @@ from contextlib import contextmanager
 from typing import Any, Callable, Iterator
 
 from . import client
-from .obs import NEEDS_PASSWORD, Obs
+from .obs import NEEDS_PASSWORD, Obs, not_answering
 from .obs_setup import overlay_url
 from .onair import PLACEMENT_KINDS
 
@@ -54,7 +54,7 @@ def open_obs(url: str, on_event: Callable[[dict[str, Any]], None]) -> Iterator[O
         try:
             socket = connect(url, open_timeout=5)
         except (OSError, WebSocketException) as error:
-            raise RuntimeError(f"OBS is not answering at {url}. Is its WebSocket server switched on, under Tools?") from error
+            raise RuntimeError(not_answering(url)) from error
         with socket:
             obs = Obs(socket, on_event)
             try:

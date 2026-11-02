@@ -36,6 +36,12 @@ OBS_URL = "ws://127.0.0.1:4455"
 NEEDS_PASSWORD = "OBS requires a password"
 
 
+def not_answering(url: str) -> str:
+    """Why nothing answered, in words the creator can act on. From OBS 33, Safe Mode does not start the WebSocket server."""
+    return (f"OBS is not answering at {url}. Is its WebSocket server switched on, under Tools? "
+            "OBS does not start it in Safe Mode.")
+
+
 def auth_string(password: str, salt: str, challenge: str) -> str:
     """obs-websocket 5 authentication: base64(sha256(base64(sha256(password + salt)) + challenge))."""
     secret = base64.b64encode(hashlib.sha256((password + salt).encode()).digest()).decode()
@@ -101,6 +107,16 @@ def canvas_count(obs: Obs) -> int | None:
     except RuntimeError:
         return None
     return len(canvases) if isinstance(canvases, list) else None
+
+
+def program_scene(obs: Obs) -> str:
+    """
+    The program scene's name. obs-websocket 5.7 names it `sceneName` and marks
+    `currentProgramSceneName` deprecated, slated for removal in a later RPC
+    version; an older server sends only the deprecated one.
+    """
+    answer = obs.request("GetCurrentProgramScene")
+    return str(answer.get("sceneName") or answer.get("currentProgramSceneName") or "")
 
 
 class Obs:

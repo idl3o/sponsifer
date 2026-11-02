@@ -36,7 +36,7 @@ npm test           # 278 tests
 npm run typecheck
 npm run lint
 node scripts/playtest.mjs
-python -m pytest   # 270 tests, if you touch python/
+python -m pytest   # 273 tests, if you touch python/
 ```
 
 Anything under `python/` or `docs/provenance.md` is bound by the provenance rules in [docs/provenance.md](docs/provenance.md): sealing is opt-in, it cannot be retroactive, and a missing watermark is never treated as evidence. A change that weakens any of those will not be merged.

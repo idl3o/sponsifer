@@ -36,7 +36,7 @@ from urllib.parse import urlsplit
 
 from . import lock, onair
 from .obs import NEEDS_PASSWORD as _NEEDS_PASSWORD
-from .obs import OBS_URL, Obs, utc_now
+from .obs import OBS_URL, Obs, not_answering, utc_now
 
 #: Opens the socket to OBS. Replaced in tests by one that opens a fake.
 Connect = Callable[[str], AbstractContextManager[Any]]
@@ -282,7 +282,7 @@ def _reason(phase: str, error: BaseException, url: str, password_refused: bool) 
         # OBS answers a wrong password by closing the socket, not with a message.
         return "OBS did not accept that password."
     if phase == "connect":
-        return f"OBS is not answering at {url}. Is its WebSocket server switched on, under Tools?"
+        return not_answering(url)
     if phase == "listen":
         return "OBS closed the connection, so the logger stopped."
     return f"OBS: {error}."

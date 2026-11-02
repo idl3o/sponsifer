@@ -41,7 +41,8 @@ class FakeStudio(FakeSocket):
             item = self.studio[data["inputName"]]
             return {"inputKind": item["kind"], "inputSettings": {"url": item["url"]} if item.get("url") else {}}
         if request == "GetCurrentProgramScene":
-            return {"currentProgramSceneName": self.scene}
+            # As obs-websocket 5.7 answers: the current field and the deprecated one.
+            return {"sceneName": self.scene, "currentProgramSceneName": self.scene}
         if request == "GetVideoSettings":
             return {"baseWidth": 2560, "baseHeight": 1440}
         if request == "CreateInput":
