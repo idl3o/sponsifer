@@ -152,7 +152,7 @@ function LookFields({ style, place }: { style: EmblemStyle; place: Place }) {
       <SelectField label="Re-show the label" value={String(style.reshowEveryMinutes)}
         options={RESHOW_OPTIONS.map((m) => ({ value: String(m), label: m === 0 ? 'Never' : `Every ${m} minutes` }))}
         onChange={(v) => place({ reshowEveryMinutes: Number(v) })}
-        hint="A brief pulse, so a viewer who joined late still sees that this is an ad. The FTC asks for exactly this on live streams." />
+        hint="A brief pulse that draws the eye back to the label. The label itself never leaves the screen, and that is what tells a viewer who joined late that this is an ad." />
     </>
   );
 }

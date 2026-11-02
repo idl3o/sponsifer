@@ -48,7 +48,8 @@
 }
 
 /* Motion. The entrance runs once; the re-show pulses the label on the style's
-   period, which is the FTC's "periodic disclosure" for viewers who join late. */
+   period to draw the eye back to it. The disclosure a late joiner needs is the
+   label, which never leaves; the pulse is emphasis, not the disclosure. */
 
 .ad-enter { animation: ad-enter 600ms ease-out both; }
 

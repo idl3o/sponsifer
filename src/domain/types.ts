@@ -370,7 +370,7 @@ export interface EmblemStyle {
   bareLogo: boolean;
   /** Slide in when the source first appears. */
   entrance: boolean;
-  /** Pulse the label every so often, so a viewer who joined late still sees it. 0 is off. */
+  /** Pulse the label every so often, to draw the eye back to it; the label itself never leaves. 0 is off. */
   reshowEveryMinutes: number;
 }
 
