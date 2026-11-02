@@ -25,6 +25,21 @@ from .receipt import SERIAL_BITS
 MODEL = "Q"
 SCHEMA = 0  # TrustMark Encoding.BCH_SUPER
 
+#: The watermark's name on the C2PA soft-binding algorithm list, where TrustMark
+#: variant Q is registered as com.adobe.trustmark.Q. It follows MODEL: a
+#: different model is a different registered algorithm.
+SOFT_BINDING_ALG = f"com.adobe.trustmark.{MODEL}"
+
+
+def soft_binding_value(bits: str) -> bytes:
+    """
+    The C2PA soft binding's value for a mark: the schema code, '*', and the
+    payload bits, as TrustMark's own C2PA example writes it
+    (adobe/trustmark, c2pa/c2pa_watermark_example.py). C2PA declares the value
+    a byte string, so it is that text's bytes.
+    """
+    return f"{SCHEMA}*{bits}".encode("ascii")
+
 
 class Watermarker(Protocol):
     """Embeds and extracts a serial. Tests use a fake; `seal` uses TrustMark."""

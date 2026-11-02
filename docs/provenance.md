@@ -52,7 +52,7 @@ Sponsifer holds no signing key of its own. `ssh-keygen -Y sign` does the signing
 - **Identity can be checked against something public.** A technical creator has usually published their key at `github.com/<user>.keys`. The contract's fingerprint remains the binding link; the public key is corroboration.
 - **The namespace stops replay.** A signature made for a receipt cannot be presented as a signature over anything else, and the reverse.
 
-Ed25519 SSH signatures are produced and checked in `python/sponsifer/sshsig.py` directly, byte-compatible with OpenSSH in both directions; the tests prove it against the installed `ssh-keygen`. Other key types are signed and checked by `ssh-keygen`. A C2PA manifest carrying the same terms as IPTC rights metadata is embedded in the delivered file, for anyone whose pipeline preserves it. Most platforms strip it, which is why the watermark exists.
+Ed25519 SSH signatures are produced and checked in `python/sponsifer/sshsig.py` directly, byte-compatible with OpenSSH in both directions; the tests prove it against the installed `ssh-keygen`. Other key types are signed and checked by `ssh-keygen`. A C2PA manifest carrying the same terms as IPTC rights metadata is embedded in the delivered file, for anyone whose pipeline preserves it. Most platforms strip it, which is why the watermark exists. The manifest names the watermark as a C2PA soft binding: TrustMark variant Q, under its registered name `com.adobe.trustmark.Q`, with the mark's serial bits. A file that has lost its manifest but kept its mark can then be matched back to it by any tool that resolves soft bindings, not only by `sponsifer verify`.
 
 ## The one network call
 

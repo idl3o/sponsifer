@@ -40,14 +40,11 @@ dependencies = [
 # hundred megabytes; the rest read images, write C2PA and ask a timestamp
 # authority, which only `seal` and `verify` do.
 #
-# c2pa-python is held at 0.37.10. From 0.37.12 (2026-09-24) signing refuses a
-# `c2pa.watermarked` action that has no soft-binding assertion, so `seal` fails
-# with its default C2PA manifest. The lasting fix is a soft-binding assertion
-# naming TrustMark, which is a provenance decision; see CLAUDE.md.
-seal = ["trustmark>=0.9.2", "pillow>=10", "imagehash>=4.3", "c2pa-python>=0.37,<=0.37.10", "rfc3161ng>=2.1"]
+# c2pa-python from 0.37.10, the oldest checked with the manifest's soft binding.
+seal = ["trustmark>=0.9.2", "pillow>=10", "imagehash>=4.3", "c2pa-python>=0.37.10", "rfc3161ng>=2.1"]
 # The seal extra without TrustMark: the tests fake the watermark, so CI never
 # installs PyTorch.
-dev = ["pytest>=8", "markdown>=3.5", "pillow>=10", "imagehash>=4.3", "c2pa-python>=0.37,<=0.37.10", "rfc3161ng>=2.1"]
+dev = ["pytest>=8", "markdown>=3.5", "pillow>=10", "imagehash>=4.3", "c2pa-python>=0.37.10", "rfc3161ng>=2.1"]
 
 [project.scripts]
 sponsifer = "sponsifer.cli:main"

@@ -176,6 +176,50 @@ def test_the_c2pa_manifest_carries_the_licence(setup):
     assert licence["paidUsageDays"] == 30
 
 
+def active_manifest(path: Path) -> tuple[dict, dict]:
+    import c2pa
+
+    data = json.loads(c2pa.Reader(str(path)).json())
+    return data, data["manifests"][data["active_manifest"]]
+
+
+def test_the_manifest_binds_the_watermark_it_declares(setup):
+    """
+    From c2pa-python 0.37.12, c2pa refuses to sign a watermarked action with no
+    soft binding, which broke every seal with a manifest; this is the binding.
+    """
+    import base64
+
+    from sponsifer import receipt
+
+    _, _, _, _, deps = setup
+    plan, record = seal(setup, deps=dataclasses.replace(deps, embed_manifest=True))
+    data, active = active_manifest(plan.out)
+    by_label = {a["label"]: a["data"] for a in active["assertions"]}
+    actions = [a["action"] for a in by_label["c2pa.actions.v2"]["actions"]]
+    assert actions == ["c2pa.created", "c2pa.watermarked.bound"]
+    binding = by_label["c2pa.soft-binding"]
+    assert binding["alg"] == "com.adobe.trustmark.Q"
+    [block] = binding["blocks"]
+    bits = receipt.hex_to_bits(record["receipt"]["serial"])
+    assert block["scope"] == {} and base64.b64decode(block["value"]) == f"0*{bits}".encode()
+    failures = [s["code"] for s in data.get("validation_status") or [] if s["code"] != "signingCredential.untrusted"]
+    assert failures == [], "the self-signed chain is the only thing a validator may object to"
+
+
+def test_the_binding_names_the_registered_algorithm_and_trustmarks_own_value_format():
+    """com.adobe.trustmark.Q is variant Q's entry on the C2PA soft-binding algorithm list; the value is
+    '<schema>*<bits>', as adobe/trustmark's c2pa/c2pa_watermark_example.py writes it."""
+    from sponsifer import watermark
+
+    assert watermark.SOFT_BINDING_ALG == "com.adobe.trustmark.Q"
+    assert watermark.soft_binding_value("01" * 20) == b"0*" + b"01" * 20
+    body = manifest.licence_manifest({}, title="t", source="capture", version="0",
+                                     binding=manifest.SoftBinding("com.adobe.trustmark.Q", b"0*1"))
+    [binding] = [a["data"] for a in body["assertions"] if a["label"] == "c2pa.soft-binding"]
+    assert binding == {"alg": "com.adobe.trustmark.Q", "blocks": [{"scope": {}, "value": [48, 42, 49]}]}
+
+
 def test_verify_holds_a_sighting_that_started_after_the_seal(setup):
     tmp, _, ws, home, deps = setup
     plan, record = seal(setup)

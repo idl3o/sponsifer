@@ -170,7 +170,7 @@ npm run check      # every gate at once: typecheck, lint, vitest and pytest. Run
 npm test           # 278 tests, including the calibration sweep
 npm run typecheck
 npm run lint       # includes the house rules: no function over 50 lines
-python -m pytest   # 268 tests: the server, the on-air log, its lock and runner, status, setup, reports, labels, receipts, SSH signatures, timestamps, seal and verify
+python -m pytest   # 270 tests: the server, the on-air log, its lock and runner, status, setup, reports, labels, receipts, SSH signatures, timestamps, seal and verify
 
 node scripts/playtest.mjs   # drives real Chrome, screenshots every tab,
                             # checks overflow, tap targets and broken numbers

@@ -20,7 +20,7 @@ from PIL import Image
 
 from . import __version__, keys, ledger, manifest, receipt, sshsig, workspace
 from .timestamp import Stamp, Timestamper
-from .watermark import Watermarker, perceptual_hash
+from .watermark import SOFT_BINDING_ALG, Watermarker, perceptual_hash, soft_binding_value
 
 IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".webp"}
 
@@ -142,7 +142,8 @@ def _mark(p: SealPlan, deps: Deps, bits: str, creator: str) -> None:
             return
         chain, key = keys.c2pa_credentials(deps.home, creator)
         body = manifest.licence_manifest(
-            _licence_terms(p, receipt.bits_to_hex(bits)), title=p.out.name, source=p.content_source, version=__version__
+            _licence_terms(p, receipt.bits_to_hex(bits)), title=p.out.name, source=p.content_source, version=__version__,
+            binding=manifest.SoftBinding(SOFT_BINDING_ALG, soft_binding_value(bits)),
         )
         manifest.embed(staging, p.out, body, chain, key)
     finally:
