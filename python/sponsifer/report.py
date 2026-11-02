@@ -24,6 +24,11 @@ What the report is and is not:
 It is signed under its own SSHSIG namespace, `sponsifer-delivery`, distinct
 from the receipts', so a signature over a report can never be presented as a
 signature over a licence, or the reverse.
+
+A log that belongs to no deal gives an **airtime report**: the same document
+about any sources the streamer chose, naming its label where a delivery
+report names the deal and the sponsor. It is signed under the same namespace,
+and the signed `kind` says which it is, so neither can pass as the other.
 """
 
 from __future__ import annotations
@@ -52,7 +57,7 @@ VOD_RETENTION = {
 
 
 def build_report(
-    deal: dict[str, Any],
+    about: dict[str, Any] | onair.Label,
     delivery: onair.Delivery,
     *,
     creator: str,
@@ -60,20 +65,20 @@ def build_report(
     reported_at: str,
     log_sha256: str,
     vod_url: str = "",
+    platform: str = "",
 ) -> dict[str, Any]:
     """
-    The document that is signed. Pure: the caller supplies the time and the
-    log's hash, so the same inputs always give the same bytes.
+    The document that is signed: a delivery report for a deal, or an airtime
+    report for a label. Pure: the caller supplies the time and the log's hash,
+    so the same inputs always give the same bytes. `platform` is for a label,
+    which has no deal to say where it streamed.
     """
     summary = delivery.to_json()
     return {
         "version": REPORT_VERSION,
-        "kind": "delivery-report",
-        "dealId": deal["id"],
+        **_head(about, platform),
+        **({"canvases": summary["canvases"]} if (summary["canvases"] or 0) > 1 else {}),
         "creator": creator,
-        "sponsor": deal.get("brand", ""),
-        "platform": deal.get("platform", ""),
-        "format": deal.get("format", ""),
         "sources": summary["sources"],
         "streamStartedAt": summary["streamStartedAt"],
         "startObserved": summary["startObserved"],
@@ -88,6 +93,22 @@ def build_report(
         "reportedAt": reported_at,
         "software": PRODUCT,
     }
+
+
+def _head(about: dict[str, Any] | onair.Label, platform: str) -> dict[str, Any]:
+    """
+    What the report is about. A deal's head is the one every delivery report
+    has carried. A canvas count appears only when it was more than one, so a
+    report from one canvas is the same document it always was.
+    """
+    if isinstance(about, onair.Label):
+        return {"kind": "airtime-report", "label": about.name, "platform": platform}
+    return {"kind": "delivery-report", "dealId": about["id"], "sponsor": about.get("brand", ""),
+            "platform": about.get("platform", ""), "format": about.get("format", "")}
+
+
+def is_airtime(report: dict[str, Any]) -> bool:
+    return report["kind"] == "airtime-report"
 
 
 def commitment(report: dict[str, Any]) -> str:
@@ -149,7 +170,22 @@ def _integrity_lines(report: dict[str, Any]) -> list[str]:
     if not report["startObserved"] and report["intervals"]:
         lines.append("The logger joined after the stream began, so offsets into the recording are not given; "
                      "use the UTC times against the recording's start.")
+    if report.get("canvases"):
+        lines.append(f"OBS was running {report['canvases']} canvases, such as a second one for vertical video. OBS "
+                     "reports a source as in the program for the whole program, not per canvas, so this report "
+                     "cannot say which of the feeds a placement was in.")
     return lines
+
+
+def _about_lines(report: dict[str, Any]) -> list[str]:
+    """The title and what was watched: a sponsor's deal, or a label's sources."""
+    if is_airtime(report):
+        on = f" on {report['platform']}" if report["platform"] else ""
+        return [f"Airtime report: {report['creator'] or 'the creator'}, {report['label']}", "",
+                f"Sources watched: {', '.join(report['sources'])}{on}. No sponsor's deal; label {report['label']}."]
+    return [f"Delivery report: {report['creator']} to {report['sponsor']}", "",
+            f"Placements watched: {', '.join(report['sources'])}. A {report['format']} on {report['platform']}, "
+            f"deal {report['dealId']}."]
 
 
 def sponsor_notice(report: dict[str, Any], *, fingerprint: str, allowed_signers: str, identity: str) -> str:
@@ -162,11 +198,12 @@ def sponsor_notice(report: dict[str, Any], *, fingerprint: str, allowed_signers:
     name = report_name(report)
     retention = VOD_RETENTION.get(report["platform"], "the platform keeps a recording for a limited time")
     where = f"The recording is at {report['vodUrl']}." if report["vodUrl"] else "Ask for the recording's address if you do not have it."
+    airtime = is_airtime(report)
+    vouched = ("check it against the fingerprint its creator has given you" if airtime
+               else "the fingerprint in our agreement")
     return "\n".join(
         [
-            f"Delivery report: {report['creator']} to {report['sponsor']}",
-            "",
-            f"Placements watched: {', '.join(report['sources'])}. A {report['format']} on {report['platform']}, deal {report['dealId']}.",
+            *_about_lines(report),
             f"On air for {_span(report['totalSeconds'])} in total, across {len(report['intervals'])} interval"
             f"{'s' if len(report['intervals']) != 1 else ''}:",
             *_interval_lines(report),
@@ -177,12 +214,12 @@ def sponsor_notice(report: dict[str, Any], *, fingerprint: str, allowed_signers:
             *_integrity_lines(report),
             "",
             "This report is an index into the recording, not proof on its own. Open the recording at the",
-            f"offsets above and the placement is there to see. {where}",
+            f"offsets above and the {'source' if airtime else 'placement'} is there to see. {where}",
             f"Please check soon: {retention}.",
             "",
             f"The signed report is {name}.report.json, with its signature in {name}.report.json.sig.",
             f"Its SHA-256 is {commitment(report)}.",
-            f"It is signed with the SSH key {fingerprint}, the fingerprint in our agreement.",
+            f"It is signed with the SSH key {fingerprint}, {vouched}.",
             "",
             "To check the signature with nothing but OpenSSH, save this line as allowed_signers:",
             f"  {allowed_signers}",
@@ -190,25 +227,25 @@ def sponsor_notice(report: dict[str, Any], *, fingerprint: str, allowed_signers:
             f"  ssh-keygen -Y verify -f allowed_signers -I {identity} -n {NAMESPACE} \\",
             f"    -s {name}.report.json.sig < {name}.report.json",
             "",
-            "Please keep these files with the contract.",
+            "Please keep these files with the recording." if airtime else "Please keep these files with the contract.",
         ]
     )
 
 
 def report_name(report: dict[str, Any]) -> str:
-    """A filename stem: the deal and the moment the report was made, e.g. dl-104-20260918T163000Z."""
+    """A filename stem: the deal, or the label, and the moment the report was made, e.g. dl-104-20260918T163000Z."""
     stamp = re.sub(r"[^0-9TZ]", "", report["reportedAt"].replace("+00:00", "Z"))
-    return f"{report['dealId']}-{stamp}"
+    return f"{report['label'] if is_airtime(report) else report['dealId']}-{stamp}"
 
 
-def reports_dir(home: Path) -> Path:
-    """Where reports are written."""
-    return home / REPORTS_DIR
+def reports_dir(home: Path, subject: onair.Subject = "") -> Path:
+    """Where reports are written: a label's in a folder of their own, as its log is."""
+    return home / REPORTS_DIR / onair.LABEL_DIR if isinstance(subject, onair.Label) else home / REPORTS_DIR
 
 
 def write(home: Path, report: dict[str, Any], signature: str, notice: str, signed_bytes: bytes) -> list[Path]:
-    """Write the sponsor's three files. Refuses to overwrite: a report, once made, stands."""
-    folder = reports_dir(home)
+    """Write the three files to send. Refuses to overwrite: a report, once made, stands."""
+    folder = reports_dir(home, onair.Label(report["label"]) if is_airtime(report) else "")
     folder.mkdir(parents=True, exist_ok=True)
     name = report_name(report)
     paths = [folder / f"{name}.txt", folder / f"{name}.report.json", folder / f"{name}.report.json.sig"]

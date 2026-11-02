@@ -89,6 +89,20 @@ class OnAir:
         return disagreed, self._set(stream_live, source_active, at)
 
 
+def canvas_count(obs: Obs) -> int | None:
+    """
+    How many canvases OBS is running. None when it will not say, which is not
+    the same as one: an obs-websocket older than canvases refuses the request.
+    A source's active state covers the whole program, not one canvas, so with
+    two no log can say which feed a source was in.
+    """
+    try:
+        canvases = obs.request("GetCanvasList").get("canvases")
+    except RuntimeError:
+        return None
+    return len(canvases) if isinstance(canvases, list) else None
+
+
 class Obs:
     """A minimal obs-websocket 5 client over any object with send(str) and recv(timeout) -> str."""
 

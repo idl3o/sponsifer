@@ -28,16 +28,52 @@ The rules it keeps, all of them from `docs/research/obs-extensibility-2026-09.md
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Callable, Iterable
+from typing import Any, Callable, Iterable, Union
 from urllib.parse import parse_qs, urlsplit
 
-from .obs import Obs, OnAir, utc_now
+from .obs import Obs, OnAir, canvas_count, utc_now
 
 #: Logs live beside the ledger, one file per deal, never inside the workspace.
 LOG_DIR = "onair"
+#: Logs that belong to no deal, in a folder of their own so a label can never
+#: take the file of a deal recorded later under the same name.
+LABEL_DIR = "labels"
+
+_LABEL = re.compile(r"^[a-z0-9][a-z0-9._-]{0,63}$")
+
+
+@dataclass(frozen=True, slots=True)
+class Label:
+    """
+    A log that belongs to no deal: any source the streamer wants timed, under
+    a name they choose. The name becomes a filename, so it is held to lower
+    case letters, digits, dots, dashes and underscores, and cannot climb out
+    of its folder.
+    """
+
+    name: str
+
+    def __post_init__(self) -> None:
+        if not _LABEL.match(self.name):
+            raise ValueError(f"{self.name!r} is not a label: use lower case letters, digits, '.', '-' and '_', "
+                             "starting with a letter or digit, at most 64 characters")
+
+
+#: What a log is for. A deal is named by its id; a log with no deal, by a Label. Never both.
+Subject = Union[str, Label]
+
+
+def subject_fields(subject: Subject) -> dict[str, str]:
+    """How a log line, a lock and a report name their subject."""
+    return {"label": subject.name} if isinstance(subject, Label) else {"deal": subject}
+
+
+def subject_name(subject: Subject) -> str:
+    return f"label {subject.name}" if isinstance(subject, Label) else subject
 
 #: What each placement's browser source is called in OBS, the corner emblem
 #: first, and the `kind` its overlay address carries. The emblem's address
@@ -69,9 +105,11 @@ def deal_shown(url: str | None) -> str | None:
     return deal or None
 
 
-def log_path(home: Path, deal_id: str) -> Path:
-    """Where a deal's on-air log is appended."""
-    return home / LOG_DIR / f"{deal_id}.jsonl"
+def log_path(home: Path, subject: Subject) -> Path:
+    """Where a deal's on-air log is appended, or a label's."""
+    if isinstance(subject, Label):
+        return home / LOG_DIR / LABEL_DIR / f"{subject.name}.jsonl"
+    return home / LOG_DIR / f"{subject}.jsonl"
 
 
 def append(path: Path, line: dict[str, Any]) -> None:
@@ -85,7 +123,8 @@ def append(path: Path, line: dict[str, Any]) -> None:
 class Session:
     """One run of the logger: OBS's events and polls, written down as they happen."""
 
-    deal_id: str
+    #: The deal this log is for, by id, or the Label of a log that has none.
+    subject: Subject
     #: The OBS sources to watch: one name, or several.
     sources: list[str] | str
     write: Callable[[dict[str, Any]], None]
@@ -104,7 +143,7 @@ class Session:
         self.states = {name: OnAir() for name in self.sources}
 
     def record(self, kind: str, **fields: Any) -> None:
-        self.write({"at": utc_now(), "kind": kind, "deal": self.deal_id, **fields})
+        self.write({"at": utc_now(), "kind": kind, **subject_fields(self.subject), **fields})
 
     def _keep_present(self, obs: Obs) -> list[str]:
         """Watch only the sources OBS actually has, and return the ones it lacks."""
@@ -124,14 +163,24 @@ class Session:
         art, and a log written while it does is evidence of the wrong thing.
         Refused before anything is written. An address that cannot be read is
         no claim either way, and does not stop the logger.
+
+        A log with no deal refuses any source showing a deal at all: a
+        sponsor's minutes belong in that deal's log, where its report can find them.
         """
         self.addresses = {name: obs.request("GetInputSettings", {"inputName": name}).get("inputSettings", {}).get("url")
                           for name in self.sources}
         showing = {name: deal_shown(url) for name, url in self.addresses.items()}
-        wrong = [f"{name} is showing {deal}, not {self.deal_id}" for name, deal in showing.items()
-                 if deal is not None and deal != self.deal_id]
+        if isinstance(self.subject, Label):
+            sponsored = [f"{name} is showing {deal}" for name, deal in showing.items() if deal is not None]
+            if sponsored:
+                deal = next(deal for deal in showing.values() if deal is not None)
+                raise RuntimeError(f"{'; '.join(sponsored)}. Log it as `sponsifer log {deal}`, "
+                                   "so its minutes go to that deal")
+            return showing
+        wrong = [f"{name} is showing {deal}, not {self.subject}" for name, deal in showing.items()
+                 if deal is not None and deal != self.subject]
         if wrong:
-            raise RuntimeError(f"{'; '.join(wrong)}. Put {self.deal_id} into OBS first")
+            raise RuntimeError(f"{'; '.join(wrong)}. Put {self.subject} into OBS first")
         return showing
 
     def begin(self, obs: Obs) -> None:
@@ -143,7 +192,8 @@ class Session:
             raise RuntimeError(f"none of these sources exist in OBS: {', '.join(asked)}")
         points_at = self._pointing(obs)
         self.record("session", sources=self.sources, missing=missing, obsVersion=version.get("obsVersion"),
-                    websocketVersion=version.get("obsWebSocketVersion"), pointsAt=points_at)
+                    websocketVersion=version.get("obsWebSocketVersion"), pointsAt=points_at,
+                    canvases=canvas_count(obs))
         self.poll(obs, first=True)
 
     def _stream(self, live: bool, at: str, observed: bool, by: str) -> None:
@@ -266,7 +316,7 @@ class PlacementTotal:
 class Delivery:
     """What a log adds up to. The input to a delivery report, and to nothing else."""
 
-    deal_id: str
+    subject: Subject
     sources: list[str]
     #: Every interval of every placement, in the order they began.
     intervals: list[Interval]
@@ -279,11 +329,14 @@ class Delivery:
     open_since: str | None
     stream_started_at: str | None
     start_observed: bool
+    #: The most canvases any session of the log saw OBS running. None when OBS never said.
+    canvases: int | None = None
 
     def to_json(self) -> dict[str, Any]:
         """The shape a delivery report embeds, and the app reads."""
         return {
-            "deal": self.deal_id,
+            **subject_fields(self.subject),
+            "canvases": self.canvases,
             "sources": self.sources,
             "streamStartedAt": self.stream_started_at,
             "startObserved": self.start_observed,
@@ -327,6 +380,17 @@ def delivery(lines: Iterable[dict[str, Any]]) -> Delivery:
     return state.done()
 
 
+def _subject_of(line: dict[str, Any]) -> Subject:
+    """The subject a log line names. A label that would not pass as one names nothing."""
+    label = line.get("label")
+    if isinstance(label, str):
+        try:
+            return Label(label)
+        except ValueError:
+            return ""
+    return str(line.get("deal", ""))
+
+
 def union_seconds(intervals: Iterable[Interval]) -> float:
     """Seconds covered by at least one interval: overlapping placements are counted once."""
     spans = sorted((datetime.fromisoformat(i.start), datetime.fromisoformat(i.end)) for i in intervals)
@@ -343,7 +407,8 @@ def union_seconds(intervals: Iterable[Interval]) -> float:
 
 @dataclass
 class _Fold:
-    deal_id: str = ""
+    subject: Subject = ""
+    canvases: int | None = None
     sources: list[str] = field(default_factory=list)
     stream_started_at: str | None = None
     start_observed: bool = False
@@ -355,11 +420,14 @@ class _Fold:
 
     def take(self, line: dict[str, Any]) -> None:
         kind = line.get("kind")
-        self.deal_id = self.deal_id or str(line.get("deal", ""))
+        self.subject = self.subject or _subject_of(line)
         if kind == "session":
             # A log from before placements names one `source`; a newer one lists `sources`.
             for name in line.get("sources") or [line.get("source", "")]:
                 self._know(str(name))
+            seen = line.get("canvases")
+            if isinstance(seen, int) and not isinstance(seen, bool):
+                self.canvases = max(seen, self.canvases or 0)
         elif kind == "stream" and line.get("live"):
             self.stream_started_at = str(line.get("at"))
             self.start_observed = bool(line.get("startObserved"))
@@ -405,7 +473,8 @@ class _Fold:
             for name in self.sources
         ]
         return Delivery(
-            deal_id=self.deal_id,
+            subject=self.subject,
+            canvases=self.canvases,
             sources=list(self.sources),
             intervals=ordered,
             placements=placements,

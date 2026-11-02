@@ -6,7 +6,10 @@
     sponsifer overlay DEAL        the overlay addresses to paste into OBS
     sponsifer dock                the dock's address, for OBS's Custom Browser Docks
     sponsifer log DEAL            record when a deal's placements were on air
+    sponsifer log --label NAME --source SOURCE
+                                  the same for any source, with no deal
     sponsifer report DEAL         sign what the log says was on air, for the sponsor
+    sponsifer report --label NAME sign a label's log the same way
     sponsifer key --ssh PATH      choose the SSH key that signs reports and receipts
 
   With the seal extra, pipx install 'sponsifer[seal]':
@@ -28,7 +31,7 @@ from datetime import date
 from pathlib import Path
 from typing import Callable
 
-from . import __version__, keys, ledger, manifest, sshsig, toolkit, workspace
+from . import __version__, keys, ledger, manifest, onair, sshsig, toolkit, workspace
 from .obs import OBS_URL
 from .onair import CONVENTIONAL_SOURCES
 from .timestamp import DEFAULT_TSA
@@ -100,19 +103,38 @@ def _obs_commands(sub: argparse._SubParsersAction) -> None:
     dock.add_argument("--port", type=int, default=toolkit.APP_PORT, help=_PORT_HELP)
 
 
+def _label(value: str) -> onair.Label:
+    try:
+        return onair.Label(value)
+    except ValueError as error:
+        raise argparse.ArgumentTypeError(str(error)) from error
+
+
+def _subject_arguments(parser: argparse.ArgumentParser, label_help: str) -> None:
+    """A deal or a label, exactly one: a log is for a sponsor's deal, or for no deal at all."""
+    which = parser.add_mutually_exclusive_group(required=True)
+    which.add_argument("deal", nargs="?", help=_DEAL_HELP)
+    which.add_argument("--label", type=_label, metavar="NAME", help=label_help)
+
+
 def _log_commands(sub: argparse._SubParsersAction) -> None:
-    log = sub.add_parser("log", help="record when a deal's placements were on air, from OBS")
-    log.add_argument("deal", help=_DEAL_HELP)
+    from .report import VOD_RETENTION
+
+    log = sub.add_parser("log", help="record when a deal's placements, or any sources, were on air, from OBS")
+    _subject_arguments(log, "log with no deal, under this name, e.g. stream-1102; needs --source")
     log.add_argument("--source", action="append", metavar="NAME",
-                     help="a browser source to watch, by its name in OBS; repeat for several "
-                          "(default: every placement's usual name, watching those OBS has)")
+                     help="a source to watch, by its name in OBS; repeat for several "
+                          "(default for a deal: every placement's usual name, watching those OBS has)")
     log.add_argument("--url", default=OBS_URL, help="where OBS's WebSocket server is listening")
     log.add_argument("--poll", type=float, default=2.0, help="seconds of quiet before asking OBS directly")
     log.add_argument("--workspace", type=Path, help=_WORKSPACE_HELP)
 
-    rep = sub.add_parser("report", help="sign a delivery report from the on-air log, for the sponsor")
-    rep.add_argument("deal", help=_DEAL_HELP)
-    rep.add_argument("--vod", default="", help="the recording's address, so the sponsor can open it at the offsets")
+    rep = sub.add_parser("report", help="sign a report from the on-air log: for the sponsor, or for a label")
+    _subject_arguments(rep, "sign the log kept under this name with `log --label`")
+    rep.add_argument("--vod", default="", help="the recording's address, so whoever checks can open it at the offsets")
+    rep.add_argument("--platform", choices=sorted(VOD_RETENTION),
+                     help="for a label: where it streamed, so the report says how long the recording is kept")
+    rep.add_argument("--name", help="the name to sign as (default: the name in the app's profile)")
     rep.add_argument("--workspace", type=Path, help=_WORKSPACE_HELP)
 
     key = sub.add_parser("key", help="choose or show the SSH key that signs reports and receipts")
@@ -264,26 +286,38 @@ def _won_deal(args: argparse.Namespace, home: Path) -> dict | None:
     return deal
 
 
-def _log(args: argparse.Namespace, home: Path) -> int:
-    """Follow OBS and append every on-air transition to the deal's log."""
-    from . import lock, onair
+def _log_subject(args: argparse.Namespace, home: Path) -> onair.Subject | None:
+    """The won deal or the label a log is for, or None with the reason printed."""
+    if args.label is None:
+        return args.deal if _won_deal(args, home) is not None else None
+    if not args.source:
+        print("A log with no deal needs --source for each source to watch; the usual names belong to "
+              "sponsors' placements.", file=sys.stderr)
+        return None
+    return args.label
 
-    if _won_deal(args, home) is None:
+
+def _log(args: argparse.Namespace, home: Path) -> int:
+    """Follow OBS and append every on-air transition to the deal's log, or the label's."""
+    from . import lock
+
+    subject = _log_subject(args, home)
+    if subject is None:
         return 1
     try:
-        held = lock.acquire(home, {"deal": args.deal}, "terminal")
+        held = lock.acquire(home, onair.subject_fields(subject), "terminal")
     except lock.Held as other:
         print(f"Not logging: a logger is already running {other}. One at a time, or the same minutes "
               "are written twice; stop that one first.", file=sys.stderr)
         return 1
-    path = onair.log_path(home, args.deal)
+    path = onair.log_path(home, subject)
 
     def write(line: dict) -> None:
         onair.append(path, line)
         print(json.dumps(line, ensure_ascii=False), flush=True)
 
-    session = onair.Session(args.deal, args.source or list(onair.CONVENTIONAL_SOURCES), write)
-    print(f"Watching OBS for {args.deal}. Ctrl+C to stop. Appending to {path}")
+    session = onair.Session(subject, args.source or list(onair.CONVENTIONAL_SOURCES), write)
+    print(f"Watching OBS for {onair.subject_name(subject)}. Ctrl+C to stop. Appending to {path}")
     try:
         with toolkit.open_obs(args.url, session.event) as obs:
             onair.follow(obs, session, args.poll)
@@ -306,7 +340,8 @@ def _print_summary(summary) -> None:  # noqa: ANN001 - onair.Delivery, imported 
         print(f"{summary.disagreements} polls disagreed with OBS's events. The report will say so.")
 
 
-def _write_report(home: Path, deal: dict, delivery, log_path: Path, vod: str, creator: str, signer) -> tuple[dict, list[Path]]:  # noqa: ANN001
+def _write_report(home: Path, about: dict | onair.Label, delivery, log_path: Path, args: argparse.Namespace,  # noqa: ANN001
+                  creator: str, signer) -> tuple[dict, list[Path]]:  # noqa: ANN001
     """Build, sign and write the report. Raises keys.NoKey if signing fails."""
     import hashlib
     from datetime import datetime, timezone
@@ -315,12 +350,13 @@ def _write_report(home: Path, deal: dict, delivery, log_path: Path, vod: str, cr
     from . import report as reports
 
     body = reports.build_report(
-        deal, delivery,
+        about, delivery,
         creator=creator,
         public_key=sshsig.normalise(signer.public_key),
         reported_at=datetime.now(timezone.utc).isoformat(timespec="seconds"),
         log_sha256=hashlib.sha256(log_path.read_bytes()).hexdigest(),
-        vod_url=vod,
+        vod_url=args.vod,
+        platform=args.platform or "",
     )
     signed = receipt.canonical(body)
     signature = signer.sign(signed, reports.NAMESPACE)
@@ -334,33 +370,40 @@ def _write_report(home: Path, deal: dict, delivery, log_path: Path, vod: str, cr
     return body, reports.write(home, body, signature, notice, signed)
 
 
+def _signer_name(args: argparse.Namespace, home: Path) -> str:
+    """The name the report is signed as: --name, else the app's profile, else none."""
+    if args.name is not None:
+        return args.name
+    path = _workspace(args, home)
+    return workspace.load(path).get("profile", {}).get("name", "") if path.exists() else ""
+
+
 def _report(args: argparse.Namespace, home: Path) -> int:
-    """Fold the on-air log, sign it, and write the sponsor's files."""
-    from . import onair
+    """Fold the on-air log, sign it, and write the files to send."""
     from . import report as reports
 
-    deal = _won_deal(args, home)
-    if deal is None:
+    subject: onair.Subject = args.label if args.label is not None else args.deal
+    about = args.label if args.label is not None else _won_deal(args, home)
+    if about is None:
         return 1
-    log_path = onair.log_path(home, args.deal)
+    log_path = onair.log_path(home, subject)
     delivery = onair.delivery(onair.read_log(log_path))
     if not delivery.intervals and delivery.open_since is None:
-        print(f"Nothing on air is recorded for {args.deal}. Run `sponsifer log {args.deal}` during the stream first.",
-              file=sys.stderr)
+        again = f"--label {subject.name} --source ..." if isinstance(subject, onair.Label) else subject
+        print(f"Nothing on air is recorded for {onair.subject_name(subject)}. "
+              f"Run `sponsifer log {again}` during the stream first.", file=sys.stderr)
         return 1
-    creator = workspace.load(_workspace(args, home)).get("profile", {}).get("name", "")
     try:
-        body, paths = _write_report(home, deal, delivery, log_path, args.vod, creator, keys.signer_for(home))
+        body, paths = _write_report(home, about, delivery, log_path, args, _signer_name(args, home), keys.signer_for(home))
     except keys.NoKey as error:
         print(f"Not signed: {error}.", file=sys.stderr)
         return 1
-    minutes = body["totalSeconds"] / 60
-    print(f"On air {minutes:.1f} minutes across {len(body['intervals'])} intervals. "
+    print(f"On air {body['totalSeconds'] / 60:.1f} minutes across {len(body['intervals'])} intervals. "
           f"Signed with {sshsig.fingerprint(body['publicKey'])}.")
-    if body["disagreements"] or body["openSince"]:
+    if body["disagreements"] or body["openSince"] or body.get("canvases"):
         print("The report names what the log could not settle; read the .txt before sending it.")
-    print(f"  Send the sponsor: {', '.join(p.name for p in paths)}")
-    print(f"                    from {reports.reports_dir(home)}")
+    print(f"  Send: {', '.join(p.name for p in paths)}")
+    print(f"  from  {reports.reports_dir(home, subject)}")
     return 0
 
 

@@ -1,0 +1,26 @@
+Delivery report: Ada Trelawny to Hetzner
+
+Placements watched: Sponsor overlay. A stream on twitch, deal dl-104.
+On air for 11m 30s in total, across 2 intervals:
+  1. "Sponsor overlay": 2026-09-18T20:05:00.000+00:00 to 2026-09-18T20:06:30.000+00:00  (1m 30s), 0:05:00 into the stream
+  2. "Sponsor overlay": 2026-09-18T21:00:00.000+00:00 to 2026-09-18T21:10:00.000+00:00  (10m 00s), 1:00:00 into the stream
+
+On air means the stream was live and the named source was in the broadcast feed, as reported by
+OBS Studio and checked directly against it every few seconds. Times are UTC wall clock.
+1 time the logger's direct check of OBS contradicted the event OBS had sent; each is in the log, and the direct check is what counts.
+
+This report is an index into the recording, not proof on its own. Open the recording at the
+offsets above and the placement is there to see. The recording is at https://www.twitch.tv/videos/1.
+Please check soon: Twitch keeps a past broadcast for 7 days, 14 for Affiliates and 60 for Partners, and highlights do not expire.
+
+The signed report is dl-104-20260918T220000Z.report.json, with its signature in dl-104-20260918T220000Z.report.json.sig.
+Its SHA-256 is 6517a85ec7e569e9af10642dea04de7346425c42126b10dfc9d8ef6b3953eda0.
+It is signed with the SSH key SHA256:lbmsoA0yIEcEiVDRnMWuzm+nV+3ZEEpVIURqFoeSspg, the fingerprint in our agreement.
+
+To check the signature with nothing but OpenSSH, save this line as allowed_signers:
+  ada-trelawny namespaces="sponsifer-delivery" ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAOhB7/zzhC+HXDdGOdLwJln5NYwm6UNXx3chmQSVTG4
+and run:
+  ssh-keygen -Y verify -f allowed_signers -I ada-trelawny -n sponsifer-delivery \
+    -s dl-104-20260918T220000Z.report.json.sig < dl-104-20260918T220000Z.report.json
+
+Please keep these files with the contract.

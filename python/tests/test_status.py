@@ -13,7 +13,7 @@ from test_obs_setup import FakeStudio, address
 from websockets.exceptions import ConnectionClosed
 from websockets.sync.server import serve
 
-from sponsifer import status, toolkit
+from sponsifer import obs, status, toolkit
 from sponsifer.obs import Obs, auth_string
 
 SALT, CHALLENGE = "salt", "challenge"
@@ -118,7 +118,7 @@ def test_an_obs_without_canvases_is_unknown_not_one():
         def request(self, request_type: str, data: dict | None = None) -> dict:
             raise RuntimeError("GetCanvasList failed: 204")
 
-    assert status._canvases(Refuses()) is None
+    assert obs.canvas_count(Refuses()) is None
 
 
 def test_the_lines_say_on_air_missing_and_a_dead_address():
