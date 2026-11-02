@@ -7,9 +7,11 @@ nothing here knows the log's shape.
 
 The rules it keeps:
 
-- **One logger at a time.** Placements are found by their conventional source
-  names, which are the same for every deal, so two loggers would write the same
-  minutes into two deals' logs.
+- **One logger at a time, on the whole machine.** Placements are found by their
+  conventional source names, which are the same for every deal, so two loggers
+  would write the same minutes into two deals' logs. This runner keeps the rule
+  among its own threads, and `lock.py` keeps it against a terminal's
+  `sponsifer log` or a second server.
 - **The password is used once and not kept.** It answers OBS's challenge and is
   then dropped: it is never on the runner, in the status or in the log. Python
   cannot wipe memory, so "not kept" means no reference outlives the handshake.
@@ -32,7 +34,7 @@ from pathlib import Path
 from typing import Any, Callable, TypeVar
 from urllib.parse import urlsplit
 
-from . import onair
+from . import lock, onair
 from .obs import OBS_URL, Obs, utc_now
 
 #: Opens the socket to OBS. Replaced in tests by one that opens a fake.
@@ -54,11 +56,20 @@ class ObsRefused(RuntimeError):
 
 
 class Busy(RuntimeError):
-    """A logger is already running. `deal` is the one it is logging."""
+    """
+    A logger is already running. `deal` is the one it is logging. `elsewhere`
+    says where, when it is another process's and not this runner's, so a second
+    request for the same deal is still refused: this server is not running it.
+    """
 
-    def __init__(self, deal: str) -> None:
-        super().__init__(f"the logger is already running for {deal}")
-        self.deal = deal
+    def __init__(self, deal: str, elsewhere: str | None = None) -> None:
+        super().__init__(f"the logger is already running for {deal}" + (f", {elsewhere}" if elsewhere else ""))
+        self.deal, self.elsewhere = deal, elsewhere
+
+    @staticmethod
+    def held(held: lock.Held) -> Busy:
+        subject = held.holder.get("deal") or held.holder.get("label")
+        return Busy(subject if isinstance(subject, str) else "something else", str(held))
 
 
 @dataclass(frozen=True, slots=True)
@@ -134,18 +145,27 @@ class Runner:
         """
         Start logging a deal, and wait until OBS has answered or refused.
 
-        Raises `Busy` when a logger is already running, whichever deal it is for.
+        Raises `Busy` when a logger is already running, whichever deal it is
+        for, here or in another process.
         """
         with self._lock:
             if self._thread is not None and self._thread.is_alive():
                 raise Busy(self._status.deal or "")
+            try:
+                held = lock.acquire(self._home, {"deal": deal_id}, "app")
+            except lock.Held as other:
+                raise Busy.held(other) from None
             stop, ready = threading.Event(), threading.Event()
             # Handed over in a list the thread empties, so no reference outlives the handshake.
             secret = [password]
             self._stop, self._status = stop, Status(deal=deal_id)
-            self._thread = threading.Thread(target=self._run, args=(deal_id, secret, stop, ready),
+            self._thread = threading.Thread(target=self._run, args=(deal_id, secret, stop, ready, held),
                                             name=f"onair-{deal_id}", daemon=True)
-            self._thread.start()
+            try:
+                self._thread.start()
+            except RuntimeError:
+                held.release()
+                raise
         ready.wait(self._ready_timeout)
         return self.status()
 
@@ -164,15 +184,19 @@ class Runner:
         the logger: the address the server was started with, and a password
         used once and not kept.
 
-        Refused with `Busy` while the logger runs, and the lock is held
-        throughout, so a logger cannot begin halfway through: what the log says
-        the sources were showing stays true.
+        Refused with `Busy` while a logger runs, this runner's or another
+        process's, and both locks are held throughout, so a logger cannot begin
+        halfway through: what the log says the sources were showing stays true.
         """
         from websockets.exceptions import WebSocketException
 
         with self._lock:
             if self._thread is not None and self._thread.is_alive():
                 raise Busy(self._status.deal or "")
+            try:
+                held = lock.acquire(self._home, {}, "setup")
+            except lock.Held as other:
+                raise Busy.held(other) from None
             phase = "connect"
             try:
                 with self._connect(self._url) as socket:
@@ -184,12 +208,15 @@ class Runner:
             except (OSError, RuntimeError, WebSocketException) as error:
                 refused = phase == "identify" and password is not None and not isinstance(error, RuntimeError)
                 raise ObsRefused(_reason(phase, error, self._url, refused), str(error) == _NEEDS_PASSWORD) from error
+            finally:
+                held.release()
 
     def _set(self, **changes: Any) -> None:
         with self._lock:
             self._status = replace(self._status, **changes)
 
-    def _run(self, deal_id: str, secret: list[str | None], stop: threading.Event, ready: threading.Event) -> None:
+    def _run(self, deal_id: str, secret: list[str | None], stop: threading.Event, ready: threading.Event,
+             held: lock.LoggerLock) -> None:
         from websockets.exceptions import WebSocketException
 
         path = onair.log_path(self._home, deal_id)
@@ -224,6 +251,7 @@ class Runner:
             secret.clear()
             if begun:
                 session.end()
+            held.release()  # after the end line, so the next logger's lines follow it
             with self._lock:
                 self._session = None
             self._set(running=False, warnings=())

@@ -193,8 +193,9 @@ def _obs_setup(h: Mapping[str, str], body: bytes, ctx: Context, runner: Runner) 
     try:
         result = runner.with_obs(password, lambda obs: obs_setup.setup(obs, ctx.port, deal_id))
     except Busy as busy:
-        return _json(409, {"error": f"the logger is running for {busy.deal}, and its log has already written down what "
-                                    "each source is showing; stop it before changing them"})
+        where = f" {busy.elsewhere}" if busy.elsewhere else ""
+        return _json(409, {"error": f"the logger is running for {busy.deal}{where}, and its log has already written down "
+                                    "what each source is showing; stop it before changing them"})
     except ObsRefused as no:
         return _json(502, {"error": str(no), "needsPassword": no.needs_password})
     return _json(200, result.to_json())
@@ -214,6 +215,10 @@ def _logger(action: str, h: Mapping[str, str], body: bytes, ctx: Context, runner
     try:
         status = runner.start(deal_id, password)
     except Busy as busy:
+        if busy.elsewhere:
+            # Not this server's logger, so not this server's to report as running or to stop.
+            return _json(409, {"error": f"the logger is already running for {busy.deal} {busy.elsewhere}; "
+                                        "stop it there first", "deal": busy.deal})
         if busy.deal == deal_id:
             return _json(200, runner.status().to_json())
         return _json(409, {"error": f"the logger is already running for {busy.deal}; stop it first", "deal": busy.deal})

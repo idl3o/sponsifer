@@ -218,10 +218,16 @@ def _log(args: argparse.Namespace, home: Path) -> int:
     """Follow OBS and append every on-air transition to the deal's log."""
     from websockets.sync.client import connect
 
-    from . import onair
+    from . import lock, onair
     from .obs import Obs
 
     if _log_deal(args, home) is None:
+        return 1
+    try:
+        held = lock.acquire(home, {"deal": args.deal}, "terminal")
+    except lock.Held as other:
+        print(f"Not logging: a logger is already running {other}. One at a time, or the same minutes "
+              "are written twice; stop that one first.", file=sys.stderr)
         return 1
     path = onair.log_path(home, args.deal)
     password = os.environ.get("OBS_WEBSOCKET_PASSWORD") or getpass.getpass("OBS WebSocket password (blank if none): ") or None
@@ -242,6 +248,8 @@ def _log(args: argparse.Namespace, home: Path) -> int:
     except (OSError, RuntimeError) as error:
         print(f"OBS: {error}. Is the WebSocket server switched on, under Tools?", file=sys.stderr)
         return 1
+    finally:
+        held.release()
     summary = onair.delivery(onair.read_log(path))
     minutes = summary.total_seconds / 60
     print(f"\nOn air {minutes:.1f} minutes across {len(summary.intervals)} intervals.")
