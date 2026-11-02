@@ -5,13 +5,13 @@ build-backend = "hatchling.build"
 [project]
 name = "sponsifer"
 dynamic = ["version"]
-description = "Price a sponsorship and defend the number, put the sponsor on stream through OBS, sign a report of when it was on air, and seal what you deliver. Local-first, no account, no telemetry."
+description = "Tools for streamers who run OBS: put a sponsor on stream, log every second they were on air, and sign a report the sponsor checks with OpenSSH. Prices the deal too. Local-first, no account, no telemetry."
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
 authors = [{ name = "S. Lavi" }]
 requires-python = ">=3.10"
-keywords = ["creator-economy", "sponsorship", "rate-card", "media-kit", "obs", "twitch", "streaming", "c2pa", "watermark", "local-first"]
+keywords = ["obs", "obs-studio", "obs-websocket", "streaming", "twitch", "sponsorship", "overlay", "creator-economy", "rate-card", "c2pa", "watermark", "local-first"]
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Environment :: Console",
@@ -21,6 +21,7 @@ classifiers = [
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3 :: Only",
   "Topic :: Multimedia :: Graphics",
+  "Topic :: Multimedia :: Video",
   "Topic :: Office/Business :: Financial",
   "Topic :: Security :: Cryptography",
 ]

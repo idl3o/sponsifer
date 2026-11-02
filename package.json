@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.2.0",
   "type": "module",
-  "description": "Price a sponsorship and defend the number, put the sponsor on stream through OBS, and sign a report of when it was on air. Local-first, no account, no telemetry.",
+  "description": "Tools for streamers who run OBS: put a sponsor on stream, log every second they were on air, and sign a report the sponsor checks with OpenSSH. Prices the deal too. Local-first, no account, no telemetry.",
   "scripts": {
     "dev": "vite",
     "dev:api": "node scripts/dev-api.mjs",

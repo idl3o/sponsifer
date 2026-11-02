@@ -21,24 +21,29 @@ Everything is public and permanent once it reaches PyPI. A version number, once 
 
 ## Each release
 
-1. Set the same version in `python/sponsifer/__init__.py` and `package.json`. The workflow refuses a tag that does not match both.
+1. Set the same version in `python/sponsifer/__init__.py` and `package.json`. The workflow refuses a tag that does not match both. In the same commit, remove the README's "not on PyPI yet" line: the README is the PyPI page, and it is frozen into the release.
 2. Push `main`. Then run *Actions → release → Run workflow*. This builds, runs every test, and publishes to **TestPyPI only**.
-3. Install from TestPyPI as a user would, taking dependencies from the real index:
+3. Install from TestPyPI as a user would, taking dependencies from the real index. The base install first, since that is what most people get:
    ```bash
-   pipx install --pip-args="--index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/" "sponsifer[seal]"
+   pipx install --pip-args="--index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/" sponsifer
    sponsifer --version
-   sponsifer            # the app should open
+   sponsifer                      # the list of tools, and nothing starts
+   sponsifer status               # against OBS, with its WebSocket server on
+   sponsifer app                  # the app should open
+   pipx runpip sponsifer list     # no pillow, imagehash, c2pa-python or rfc3161ng
    ```
+   Then the extra, with `pipx install --force` and `"sponsifer[seal]"`, and `sponsifer seal-model`.
 4. If that is right, tag and push:
    ```bash
    git tag v0.2.0
    git push origin v0.2.0
    ```
-5. Approve the `pypi` deployment in the Actions tab. The release is then live at <https://pypi.org/p/sponsifer>, and anyone can install it with `pipx install "sponsifer[seal]"`.
+5. Approve the `pypi` deployment in the Actions tab. The release is then live at <https://pypi.org/p/sponsifer>, and anyone can install it with `pipx install sponsifer`, or `pipx install "sponsifer[seal]"` for sealing.
 
 ## What the workflow checks before anything is uploaded
 
 - typecheck, lint, vitest and pytest, which includes the SSHSIG interoperability tests against the runner's OpenSSH
+- on every push, not only a release: CI's `python-base` job installs with no extras, runs the commands, and runs every test but the sealing ones, so a module from the `seal` extra cannot leak into the toolkit unnoticed
 - that the tag, the Python package and the app all carry the same version
 - `twine check --strict` on the built files
 - that the wheel actually contains the web app, since it is gitignored and only included deliberately
